@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Painel — Paper Trader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0A0E13;
+    --panel: #121821;
+    --panel-line: #1F2833;
+    --text: #E7ECF2;
+    --muted: #7C8A9C;
+    --up: #34D399;
+    --down: #F87171;
+    --amber: #E4B054;
+    --amber-dim: rgba(228,176,84,0.14);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 40px;
+  }
+  .mono{ font-family: 'JetBrains Mono', monospace; }
+
+  header{
+    padding: 22px 18px 16px;
+    border-bottom: 1px solid var(--panel-line);
+    position: sticky; top: 0;
+    background: rgba(10,14,19,0.92);
+    backdrop-filter: blur(6px);
+    z-index: 10;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .dot{
+    width:8px; height:8px; border-radius:50%;
+    background: var(--amber);
+    box-shadow: 0 0 0 4px var(--amber-dim);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ box-shadow: 0 0 0 4px var(--amber-dim); }
+    50%{ box-shadow: 0 0 0 7px rgba(228,176,84,0.05); }
+  }
+  h1{ font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  .subtitle{
+    margin-top: 4px;
+    font-size: 12px; color: var(--muted);
+    display:flex; justify-content: space-between; align-items:center;
+  }
+  .badge{
+    font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--amber); background: var(--amber-dim);
+    padding: 3px 8px; border-radius: 20px; font-weight: 600;
+  }
+
+  main{ padding: 18px; display: flex; flex-direction: column; gap: 22px; }
+
+  section .section-label{
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 10px; font-weight: 600;
+  }
+
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  /* Alertas */
+  .alert{
+    display: flex; gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--panel-line);
+  }
+  .alert:last-child{ border-bottom: none; padding-bottom: 2px; }
+  .alert:first-child{ padding-top: 2px; }
+  .alert-tag{
+    flex-shrink: 0;
+    width: 40px; height: 40px; border-radius: 10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 11px; font-weight: 700;
+  }
+  .alert-tag.buy{ background: rgba(52,211,153,0.14); color: var(--up); }
+  .alert-tag.sell{ background: rgba(248,113,113,0.14); color: var(--down); }
+  .alert-body{ flex: 1; }
+  .alert-symbol{ font-weight: 700; font-size: 14px; }
+  .alert-msg{ font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+  .empty{ color: var(--muted); font-size: 13px; padding: 6px 0; }
+
+  /* Movers */
+  .mover-row{
+    display:flex; justify-content: space-between; align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--panel-line);
+    font-size: 14px;
+  }
+  .mover-row:last-child{ border-bottom: none; }
+  .mover-symbol{ font-weight: 600; }
+  .mover-price{ color: var(--muted); font-size: 12px; margin-left: 8px; }
+  .mover-pct{ font-weight: 700; }
+  .mover-pct.up{ color: var(--up); }
+  .mover-pct.down{ color: var(--down); }
+
+  .movers-grid{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 420px){
+    .movers-grid{ grid-template-columns: 1fr; }
+  }
+
+  /* Portfolio */
+  .stat-row{ display:flex; justify-content: space-between; padding: 8px 0; font-size: 13px; }
+  .stat-row .label{ color: var(--muted); }
+  .stat-row .value{ font-weight: 600; }
+  .exposure-bar{
+    height: 6px; border-radius: 4px; background: var(--panel-line);
+    margin-top: 4px; overflow: hidden;
+  }
+  .exposure-fill{ height: 100%; background: var(--amber); }
+  .position{
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--panel-line);
+    font-size: 13px;
+  }
+  .position-head{ display:flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px;}
+  .position-detail{ color: var(--muted); display:flex; gap: 14px; font-size: 12px; }
+
+  footer{
+    padding: 20px 18px 0; text-align: center;
+    font-size: 11px; color: var(--muted); line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="dot"></div>
+    <h1>Paper Trader</h1>
+  </div>
+  <div class="subtitle">
+    <span id="updated-at">—</span>
+    <span class="badge">Simulação</span>
+  </div>
+</header>
+
+<main>
+
+  <section>
+    <div class="section-label">Alertas</div>
+    <div class="card" id="alerts-card"></div>
+  </section>
+
+  <section>
+    <div class="section-label">Maiores movimentos</div>
+    <div class="movers-grid">
+      <div class="card">
+        <div style="font-size:11px;color:var(--up);font-weight:700;margin-bottom:8px;">ALTAS</div>
+        <div id="top-altas"></div>
+      </div>
+      <div class="card">
+        <div style="font-size:11px;color:var(--down);font-weight:700;margin-bottom:8px;">QUEDAS</div>
+        <div id="top-quedas"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">Portfólio simulado</div>
+    <div class="card" id="portfolio-card"></div>
+  </section>
+
+</main>
+
+<footer>
+  Dados simulados para desenvolvimento — nenhuma ordem real é enviada.<br>
+  Fonte ao vivo entra quando as APIs reais forem conectadas.
+</footer>
+
+<script>
+// ---------------------------------------------------------------
+// URL da API — troque pelo endereço real quando hospedar (ex:
+// https://seu-servico.onrender.com). Localmente, aponta pro
+// uvicorn rodando em 127.0.0.1:8000.
+// ---------------------------------------------------------------
+const API_URL = "http://127.0.0.1:8000/api/scan";
+
+function fmtPrice(v){ return v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtPct(v){ return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
+function fmtMoney(v){ return 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function renderMovers(elId, list){
+  document.getElementById(elId).innerHTML = list.map(m => `
+    <div class="mover-row">
+      <div>
+        <span class="mover-symbol mono">${m.symbol}</span>
+        <span class="mover-price mono">${fmtPrice(m.price)}</span>
+      </div>
+      <div class="mover-pct mono ${m.pct_change >= 0 ? 'up' : 'down'}">${fmtPct(m.pct_change)}</div>
+    </div>
+  `).join('');
+}
+
+function render(DATA){
+  document.getElementById('updated-at').textContent =
+    'Atualizado ' + new Date(DATA.atualizado_em).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}) +
+    ' · ' + DATA.total_ativos + ' ativos';
+
+  const alertsCard = document.getElementById('alerts-card');
+  if (DATA.alertas.length === 0) {
+    alertsCard.innerHTML = '<div class="empty">Nenhum alerta ativo no momento.</div>';
+  } else {
+    alertsCard.innerHTML = DATA.alertas.map(a => `
+      <div class="alert">
+        <div class="alert-tag ${a.signal === 'BUY' ? 'buy' : 'sell'}">${a.signal === 'BUY' ? 'COMPRA' : 'VENDA'}</div>
+        <div class="alert-body">
+          <div class="alert-symbol mono">${a.symbol}</div>
+          <div class="alert-msg">${a.mensagem}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  renderMovers('top-altas', DATA.top_altas.slice(0,5));
+  renderMovers('top-quedas', DATA.top_quedas.slice(0,5));
+
+  const p = DATA.portfolio;
+  const exposurePct = Math.min(100, (p.exposicao_atual / p.limite_exposicao) * 100);
+  let portfolioHtml = `
+    <div class="stat-row"><span class="label">P&L realizado</span>
+      <span class="value mono" style="color:${p.cash_realized_pnl >= 0 ? 'var(--up)' : 'var(--down)'}">${fmtMoney(p.cash_realized_pnl)}</span></div>
+    <div class="stat-row"><span class="label">Exposição</span>
+      <span class="value mono">${fmtMoney(p.exposicao_atual)} / ${fmtMoney(p.limite_exposicao)}</span></div>
+    <div class="exposure-bar"><div class="exposure-fill" style="width:${exposurePct}%"></div></div>
+    <div class="stat-row" style="margin-top:6px;"><span class="label">Trades executados</span><span class="value mono">${p.trades}</span></div>
+  `;
+
+  const positions = Object.entries(p.open_positions);
+  if (positions.length > 0){
+    portfolioHtml += positions.map(([symbol, pos]) => `
+      <div class="position">
+        <div class="position-head">
+          <span class="mono">${symbol}</span>
+          <span class="mono">${pos.qty} un · ${fmtPrice(pos.avg_price)}</span>
+        </div>
+        <div class="position-detail mono">
+          <span>Stop ${fmtPrice(pos.stop_loss)}</span>
+          <span>Alvo ${fmtPrice(pos.take_profit)}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+  document.getElementById('portfolio-card').innerHTML = portfolioHtml;
+}
+
+async function loadData(){
+  try {
+    const resp = await fetch(API_URL);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    render(data);
+  } catch (err) {
+    document.getElementById('alerts-card').innerHTML =
+      `<div class="empty">Não consegui falar com a API (${err.message}). Confirme que ela está rodando e acessível em ${API_URL}.</div>`;
+  }
+}
+
+loadData();
+// Atualiza sozinho a cada 60s enquanto a página estiver aberta.
+setInterval(loadData, 60000);
+</script>
+
+</body>
+</html>

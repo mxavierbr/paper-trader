@@ -9,10 +9,13 @@ from news_context import get_news_source
 from fundamentals import get_fundamentals_source
 from ai_layer import refine_signal
 from liquidity_filter import has_enough_liquidity
-from correlation_check import check_correlation_limit
+from correlation_check import check_correlation_limit, group_of
 from cost_analyzer import net_result
 from event_calendar import get_event_calendar
 from seasonality import get_seasonal_bias
+from risk import RiskConfig, GestorDeRisco
+
+VOLUME_MEDIO_JANELA = 20  # períodos usados pra calcular o volume financeiro médio
 
 
 def scan_market(market: str) -> list:
@@ -39,6 +42,10 @@ def scan_market(market: str) -> list:
         df = add_indicators(raw_df)
         signal = generate_signal(df)
         signal["symbol"] = symbol
+        signal["setor"] = group_of(symbol) or "geral"
+        signal["volume_financeiro"] = round(
+            float(df["volume"].tail(VOLUME_MEDIO_JANELA).mean() * signal["price"]), 2
+        )
 
         event = calendar.has_upcoming_event(symbol)
         if event:
@@ -59,18 +66,52 @@ def scan_market(market: str) -> list:
     return results
 
 
-def run():
-    portfolio = PaperPortfolio()
-    all_results = scan_market("b3") + scan_market("intl")
+def process_signals(all_results: list, gestor: GestorDeRisco, portfolio: PaperPortfolio) -> list:
+    """Atualiza preços no gestor de risco a cada ciclo de cotação (fecha
+    posições que bateram stop/trailing/alvo) e só então avalia cada sinal
+    de compra através de avaliar_entrada antes de virar ordem."""
+    precos_atuais = {r["symbol"]: r["price"] for r in all_results}
+    atrs_atuais = {r["symbol"]: r.get("atr") for r in all_results}
+    eventos_saida = gestor.processar_precos(precos_atuais, atrs_atuais)
+    for evento in eventos_saida:
+        portfolio.registrar_saida_por_risco(evento["symbol"], evento)
 
     for r in all_results:
+        symbol = r["symbol"]
         if r["signal"] == "HOLD":
             continue
-        if not check_correlation_limit(r["symbol"], portfolio.positions):
+
+        if r["signal"] == "SELL":
+            if symbol in gestor.posicoes:
+                gestor.fechar_posicao(symbol, r["price"], "SINAL_TECNICO")
+            portfolio.apply_signal(symbol, r)
+            continue
+
+        if not check_correlation_limit(symbol, portfolio.positions):
             r["signal"] = "HOLD"
             r["ai_reasoning"] = "bloqueado por concentração — já há posições correlacionadas abertas"
             continue
-        portfolio.apply_signal(r["symbol"], r)
+
+        avaliacao = gestor.avaliar_entrada(
+            symbol=symbol, setor=r.get("setor", "geral"), preco=r["price"],
+            atr=r.get("atr"), volume_financeiro_medio=r.get("volume_financeiro"),
+        )
+        if not avaliacao["aprovado"]:
+            r["risco_motivo"] = avaliacao["motivo"]
+            continue
+
+        gestor.abrir_posicao(symbol, r.get("setor", "geral"), avaliacao["qty"], r["price"],
+                              avaliacao["stop"], avaliacao["alvo"])
+        portfolio.apply_signal(symbol, r, avaliacao)
+
+    return eventos_saida
+
+
+def run():
+    portfolio = PaperPortfolio()
+    gestor = GestorDeRisco(RiskConfig())
+    all_results = scan_market("b3") + scan_market("intl")
+    process_signals(all_results, gestor, portfolio)
 
     ranked = sorted(all_results, key=lambda r: r["pct_change"], reverse=True)
 
@@ -92,6 +133,9 @@ def run():
     print("\n=== RESUMO DO PORTFÓLIO SIMULADO ===")
     summary = portfolio.summary()
     print(summary)
+
+    print("\n=== GESTÃO DE RISCO ===")
+    print(gestor.status())
 
     if portfolio.trade_log:
         last_trade = portfolio.trade_log[-1]

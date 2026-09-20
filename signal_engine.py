@@ -38,7 +38,7 @@ def _vote_bb(row) -> str:
 
 def generate_signal(df: pd.DataFrame) -> dict:
     row = df.iloc[-1]
-    if pd.isna(row[["ma_fast", "ma_slow", "rsi", "bb_upper", "bb_lower"]]).any():
+    if pd.isna(row[["ma_fast", "ma_slow", "rsi", "bb_upper", "bb_lower", "atr"]]).any():
         return {"signal": "HOLD", "reason": "dados insuficientes para todos os indicadores"}
 
     votes = {"ma": _vote_ma(row), "rsi": _vote_rsi(row), "bb": _vote_bb(row)}
@@ -60,6 +60,7 @@ def generate_signal(df: pd.DataFrame) -> dict:
         "price": round(float(row["close"]), 2),
         "pct_change": pct_change,
         "rsi": round(float(row["rsi"]), 1),
+        "atr": round(float(row["atr"]), 4),
         "votes": votes,
         "timestamp": df.index[-1],
     }

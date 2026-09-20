@@ -3,7 +3,7 @@
 import pandas as pd
 
 
-def add_indicators(df: pd.DataFrame, fast=9, slow=21, rsi_period=14, bb_period=20, bb_std=2):
+def add_indicators(df: pd.DataFrame, fast=9, slow=21, rsi_period=14, bb_period=20, bb_std=2, atr_period=14):
     df = df.copy()
 
     # Médias móveis
@@ -25,5 +25,15 @@ def add_indicators(df: pd.DataFrame, fast=9, slow=21, rsi_period=14, bb_period=2
     df["bb_mid"] = mid
     df["bb_upper"] = mid + bb_std * std
     df["bb_lower"] = mid - bb_std * std
+
+    # ATR (Average True Range) — volatilidade absoluta do ativo, usada
+    # pela gestão de risco para dimensionar posição e distância de stop/alvo.
+    prev_close = df["close"].shift(1)
+    true_range = pd.concat([
+        df["high"] - df["low"],
+        (df["high"] - prev_close).abs(),
+        (df["low"] - prev_close).abs(),
+    ], axis=1).max(axis=1)
+    df["atr"] = true_range.rolling(atr_period).mean()
 
     return df

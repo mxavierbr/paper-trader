@@ -133,6 +133,14 @@
     padding: 20px 18px 0; text-align: center;
     font-size: 11px; color: var(--muted); line-height: 1.6;
   }
+
+  /* Risco */
+  .risk-badge{
+    font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 20px; font-weight: 700;
+  }
+  .risk-badge.ok{ background: rgba(52,211,153,0.14); color: var(--up); }
+  .risk-badge.blocked{ background: rgba(248,113,113,0.14); color: var(--down); }
 </style>
 </head>
 <body>
@@ -174,6 +182,11 @@
     <div class="card" id="portfolio-card"></div>
   </section>
 
+  <section>
+    <div class="section-label">Risco</div>
+    <div class="card" id="risk-card"></div>
+  </section>
+
 </main>
 
 <footer>
@@ -187,7 +200,9 @@
 // https://seu-servico.onrender.com). Localmente, aponta pro
 // uvicorn rodando em 127.0.0.1:8000.
 // ---------------------------------------------------------------
-const API_URL = "http://127.0.0.1:8000/api/scan";
+const API_BASE = "http://127.0.0.1:8000";
+const API_URL = API_BASE + "/api/scan";
+const RISK_URL = API_BASE + "/risco";
 
 function fmtPrice(v){ return v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtPct(v){ return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
@@ -229,14 +244,10 @@ function render(DATA){
   renderMovers('top-quedas', DATA.top_quedas.slice(0,5));
 
   const p = DATA.portfolio;
-  const exposurePct = Math.min(100, (p.exposicao_atual / p.limite_exposicao) * 100);
   let portfolioHtml = `
     <div class="stat-row"><span class="label">P&L realizado</span>
       <span class="value mono" style="color:${p.cash_realized_pnl >= 0 ? 'var(--up)' : 'var(--down)'}">${fmtMoney(p.cash_realized_pnl)}</span></div>
-    <div class="stat-row"><span class="label">Exposição</span>
-      <span class="value mono">${fmtMoney(p.exposicao_atual)} / ${fmtMoney(p.limite_exposicao)}</span></div>
-    <div class="exposure-bar"><div class="exposure-fill" style="width:${exposurePct}%"></div></div>
-    <div class="stat-row" style="margin-top:6px;"><span class="label">Trades executados</span><span class="value mono">${p.trades}</span></div>
+    <div class="stat-row"><span class="label">Trades executados</span><span class="value mono">${p.trades}</span></div>
   `;
 
   const positions = Object.entries(p.open_positions);
@@ -257,6 +268,54 @@ function render(DATA){
   document.getElementById('portfolio-card').innerHTML = portfolioHtml;
 }
 
+function renderRisco(DATA){
+  const badge = DATA.bloqueado
+    ? `<span class="risk-badge blocked">${DATA.bloqueio_drawdown ? 'Bloqueado · drawdown' : 'Bloqueado · perda diária'}</span>`
+    : `<span class="risk-badge ok">Liberado para operar</span>`;
+
+  const exposurePct = Math.min(100, DATA.exposicao_total_pct);
+  const ddPct = Math.min(100, DATA.drawdown_atual_pct);
+
+  let html = `
+    <div class="stat-row"><span class="label">Status</span><span class="value">${badge}</span></div>
+    <div class="stat-row"><span class="label">Patrimônio</span><span class="value mono">${fmtMoney(DATA.patrimonio)}</span></div>
+    <div class="stat-row"><span class="label">Caixa</span><span class="value mono">${fmtMoney(DATA.caixa)}</span></div>
+    <div class="stat-row"><span class="label">Exposição</span>
+      <span class="value mono">${fmtMoney(DATA.exposicao_total)} (${DATA.exposicao_total_pct.toFixed(1)}%)</span></div>
+    <div class="exposure-bar"><div class="exposure-fill" style="width:${exposurePct}%"></div></div>
+
+    <div class="stat-row" style="margin-top:10px;"><span class="label">Resultado do dia</span>
+      <span class="value mono" style="color:${DATA.resultado_do_dia >= 0 ? 'var(--up)' : 'var(--down)'}">
+        ${fmtMoney(DATA.resultado_do_dia)} (${fmtPct(DATA.resultado_do_dia_pct)})
+      </span></div>
+
+    <div class="stat-row"><span class="label">Drawdown atual</span>
+      <span class="value mono" style="color:${ddPct > 0 ? 'var(--down)' : 'var(--text)'}">${DATA.drawdown_atual_pct.toFixed(1)}%</span></div>
+    <div class="exposure-bar"><div class="exposure-fill" style="width:${ddPct}%; background:var(--down);"></div></div>
+
+    <div class="stat-row" style="margin-top:6px;"><span class="label">Posições sob gestão de risco</span>
+      <span class="value mono">${DATA.num_posicoes_abertas}</span></div>
+  `;
+
+  const posicoes = DATA.posicoes_abertas || [];
+  if (posicoes.length > 0){
+    html += posicoes.map(pos => `
+      <div class="position">
+        <div class="position-head">
+          <span class="mono">${pos.symbol}</span>
+          <span class="mono">${pos.qty} un · ${fmtPrice(pos.preco_atual)}</span>
+        </div>
+        <div class="position-detail mono">
+          <span>Stop ${fmtPrice(pos.stop)}${pos.trailing_ativo ? ' (trailing)' : ''}</span>
+          <span>Alvo ${fmtPrice(pos.alvo)}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('risk-card').innerHTML = html;
+}
+
 async function loadData(){
   try {
     const resp = await fetch(API_URL);
@@ -269,9 +328,23 @@ async function loadData(){
   }
 }
 
+async function loadRisco(){
+  try {
+    const resp = await fetch(RISK_URL);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    renderRisco(data);
+  } catch (err) {
+    document.getElementById('risk-card').innerHTML =
+      `<div class="empty">Não consegui falar com a API de risco (${err.message}). Confirme que ela está rodando e acessível em ${RISK_URL}.</div>`;
+  }
+}
+
 loadData();
+loadRisco();
 // Atualiza sozinho a cada 60s enquanto a página estiver aberta.
 setInterval(loadData, 60000);
+setInterval(loadRisco, 60000);
 </script>
 
 </body>

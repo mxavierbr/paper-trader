@@ -12,6 +12,14 @@ def narrate(signal: dict) -> str:
     price = signal["price"]
     rsi = signal["rsi"]
 
+    if signal.get("risco_motivo"):
+        msg = (f"{USER_NAME}, o sinal técnico indicava {action} em {symbol} "
+               f"(preço {price}), mas a gestão de risco recusou a entrada: "
+               f"{signal['risco_motivo']}.")
+        if signal.get("ai_reasoning"):
+            msg += f" [IA: {signal['ai_reasoning']}]"
+        return msg
+
     if action == "BUY":
         if rsi < 30:
             razao = "o preço caiu bastante e está sobrevendido"

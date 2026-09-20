@@ -6,8 +6,10 @@ Rodar localmente:
   pip install fastapi uvicorn
   uvicorn api:app --host 0.0.0.0 --port 8000
 
-Endpoint principal:
+Endpoints:
   GET /api/scan  -> mesmo formato JSON que o dashboard.html já espera
+  GET /risco     -> status da gestão de risco (patrimônio, exposição,
+                     posições abertas, resultado do dia, drawdown, bloqueios)
 """
 
 from datetime import datetime
@@ -15,10 +17,10 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from main import scan_market
+from main import scan_market, process_signals
 from paper_portfolio import PaperPortfolio
-from correlation_check import check_correlation_limit
 from narrator import narrate
+from risk import RiskConfig, GestorDeRisco
 
 app = FastAPI(title="Paper Trader API")
 
@@ -31,19 +33,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Estado do processo — precisa persistir entre requisições pro circuit
+# breaker de perda diária/drawdown e as posições abertas fazerem sentido.
+portfolio = PaperPortfolio()
+gestor_risco = GestorDeRisco(RiskConfig())
+
 
 @app.get("/api/scan")
 def scan():
-    portfolio = PaperPortfolio()
     all_results = scan_market("b3") + scan_market("intl")
-
-    for r in all_results:
-        if r["signal"] == "HOLD":
-            continue
-        if not check_correlation_limit(r["symbol"], portfolio.positions):
-            r["signal"] = "HOLD"
-            continue
-        portfolio.apply_signal(r["symbol"], r)
+    process_signals(all_results, gestor_risco, portfolio)
 
     ranked = sorted(all_results, key=lambda r: r["pct_change"], reverse=True)
     signals = [r for r in all_results if r["signal"] != "HOLD"]
@@ -66,6 +65,11 @@ def scan():
         ],
         "portfolio": portfolio.summary(),
     }
+
+
+@app.get("/risco")
+def risco():
+    return gestor_risco.status()
 
 
 @app.get("/api/health")

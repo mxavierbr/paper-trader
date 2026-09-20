@@ -159,6 +159,16 @@
 <main>
 
   <section>
+    <div class="section-label">Oportunidades de compra</div>
+    <div class="card" id="buy-opportunities-card"></div>
+  </section>
+
+  <section>
+    <div class="section-label">Hora de vender</div>
+    <div class="card" id="sell-alerts-card"></div>
+  </section>
+
+  <section>
     <div class="section-label">Alertas</div>
     <div class="card" id="alerts-card"></div>
   </section>
@@ -224,6 +234,36 @@ function render(DATA){
   document.getElementById('updated-at').textContent =
     'Atualizado ' + new Date(DATA.atualizado_em).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}) +
     ' · ' + DATA.total_ativos + ' ativos';
+
+  const opportunitiesCard = document.getElementById('buy-opportunities-card');
+  if (!DATA.oportunidades_compra || DATA.oportunidades_compra.length === 0) {
+    opportunitiesCard.innerHTML = '<div class="empty">Nenhuma oportunidade aprovada pela gestão de risco no momento.</div>';
+  } else {
+    opportunitiesCard.innerHTML = DATA.oportunidades_compra.map((o, i) => `
+      <div class="alert">
+        <div class="alert-tag buy">${i + 1}º</div>
+        <div class="alert-body">
+          <div class="alert-symbol mono">${o.symbol} <span class="mover-price mono">RR ${o.relacao_rr.toFixed(2)}</span></div>
+          <div class="alert-msg">${o.mensagem}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const sellAlertsCard = document.getElementById('sell-alerts-card');
+  if (!DATA.alertas_venda || DATA.alertas_venda.length === 0) {
+    sellAlertsCard.innerHTML = '<div class="empty">Nenhuma posição pra vender no momento.</div>';
+  } else {
+    sellAlertsCard.innerHTML = DATA.alertas_venda.map(v => `
+      <div class="alert">
+        <div class="alert-tag sell">VENDA</div>
+        <div class="alert-body">
+          <div class="alert-symbol mono">${v.symbol}</div>
+          <div class="alert-msg">${v.mensagem}</div>
+        </div>
+      </div>
+    `).join('');
+  }
 
   const alertsCard = document.getElementById('alerts-card');
   if (DATA.alertas.length === 0) {

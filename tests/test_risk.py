@@ -137,6 +137,23 @@ def test_trailing_stop_so_sobe_nunca_desce():
     assert gestor.posicoes["PETR4"].stop == stop_apos_alta  # stop não desceu
 
 
+def test_abrir_posicao_reforca_posicao_existente():
+    gestor = make_gestor()
+    gestor.abrir_posicao("PETR4", "petroleo", 100, 30.0, stop=28.0, alvo=34.0)
+    gestor.atualizar_trailing("PETR4", 32.0, atr=1.0)  # sobe o stop por trailing
+    stop_apos_trailing = gestor.posicoes["PETR4"].stop
+    assert stop_apos_trailing > 28.0
+
+    gestor.abrir_posicao("PETR4", "petroleo", 50, 33.0, stop=31.0, alvo=36.0)
+
+    pos = gestor.posicoes["PETR4"]
+    assert pos.qty == 150
+    assert pos.preco_entrada == pytest.approx((30.0 * 100 + 33.0 * 50) / 150)
+    # o stop nunca pode afrouxar o que o trailing já tinha conquistado
+    assert pos.stop == max(stop_apos_trailing, 31.0)
+    assert pos.alvo == 36.0
+
+
 def test_checar_saida_stop_e_alvo():
     gestor = make_gestor()
     gestor.abrir_posicao("PETR4", "petroleo", 100, 100.0, stop=96.0, alvo=106.0)

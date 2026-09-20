@@ -25,8 +25,13 @@ def narrate(signal: dict) -> str:
             razao = "o preço caiu bastante e está sobrevendido"
         else:
             razao = "os indicadores viraram pra alta"
-        msg = (f"{USER_NAME}, pode comprar mais {symbol} — {razao}. "
-               f"Preço atual: {price}. Tendência de subir.")
+
+        if signal.get("reforco_posicao"):
+            msg = (f"{USER_NAME}, você já tem {symbol} na carteira e o sinal é de compra de novo "
+                   f"— {razao}. Pode reforçar a posição. Preço atual: {price}.")
+        else:
+            msg = (f"{USER_NAME}, pode comprar {symbol} — {razao}. "
+                   f"Preço atual: {price}. Tendência de subir.")
 
     elif action == "SELL":
         if rsi > 70:
@@ -43,3 +48,25 @@ def narrate(signal: dict) -> str:
         msg += f" [IA: {signal['ai_reasoning']}]"
 
     return msg
+
+
+_RAZOES_SAIDA = {
+    "STOP": "bateu o stop de proteção",
+    "TRAILING": "bateu o trailing stop — protegendo o lucro que já tinha",
+    "ALVO": "atingiu o alvo",
+    "SINAL_TECNICO": "o sinal técnico virou",
+}
+
+
+def narrate_saida(evento: dict) -> str:
+    """Mensagem pra quando uma posição da carteira é fechada — seja por
+    stop, trailing, alvo ou reversão do sinal técnico."""
+    symbol = evento["symbol"]
+    motivo = evento["motivo"]
+    preco = evento["preco_saida"]
+    pnl = evento["pnl"]
+    razao = _RAZOES_SAIDA.get(motivo, motivo)
+    resultado = "lucro" if pnl >= 0 else "prejuízo"
+
+    return (f"{USER_NAME}, é hora de vender {symbol} — {razao}. "
+            f"Preço de saída: {preco}. Resultado: {resultado} de {abs(pnl):.2f}.")

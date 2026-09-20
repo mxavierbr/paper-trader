@@ -4,7 +4,7 @@ from data_source import get_data_source, get_universe, MockDataSource
 from indicators import add_indicators
 from signal_engine import generate_signal
 from paper_portfolio import PaperPortfolio
-from narrator import narrate
+from narrator import narrate, narrate_saida
 from news_context import get_news_source
 from fundamentals import get_fundamentals_source
 from ai_layer import refine_signal
@@ -83,7 +83,9 @@ def process_signals(all_results: list, gestor: GestorDeRisco, portfolio: PaperPo
 
         if r["signal"] == "SELL":
             if symbol in gestor.posicoes:
-                gestor.fechar_posicao(symbol, r["price"], "SINAL_TECNICO")
+                evento = gestor.fechar_posicao(symbol, r["price"], "SINAL_TECNICO")
+                if evento:
+                    eventos_saida.append(evento)
             portfolio.apply_signal(symbol, r)
             continue
 
@@ -91,6 +93,8 @@ def process_signals(all_results: list, gestor: GestorDeRisco, portfolio: PaperPo
             r["signal"] = "HOLD"
             r["ai_reasoning"] = "bloqueado por concentração — já há posições correlacionadas abertas"
             continue
+
+        r["reforco_posicao"] = symbol in gestor.posicoes
 
         avaliacao = gestor.avaliar_entrada(
             symbol=symbol, setor=r.get("setor", "geral"), preco=r["price"],
@@ -100,6 +104,7 @@ def process_signals(all_results: list, gestor: GestorDeRisco, portfolio: PaperPo
             r["risco_motivo"] = avaliacao["motivo"]
             continue
 
+        r["avaliacao_risco"] = avaliacao
         gestor.abrir_posicao(symbol, r.get("setor", "geral"), avaliacao["qty"], r["price"],
                               avaliacao["stop"], avaliacao["alvo"])
         portfolio.apply_signal(symbol, r, avaliacao)
@@ -107,11 +112,18 @@ def process_signals(all_results: list, gestor: GestorDeRisco, portfolio: PaperPo
     return eventos_saida
 
 
+def ranquear_oportunidades_compra(all_results: list, top_n: int = 5) -> list:
+    """Os melhores sinais de compra aprovados pela gestão de risco neste
+    ciclo (já viraram ordem), do maior pro menor retorno/risco."""
+    aprovados = [r for r in all_results if r["signal"] == "BUY" and r.get("avaliacao_risco")]
+    return sorted(aprovados, key=lambda r: r["avaliacao_risco"]["relacao_rr"], reverse=True)[:top_n]
+
+
 def run():
     portfolio = PaperPortfolio()
     gestor = GestorDeRisco(RiskConfig())
     all_results = scan_market("b3") + scan_market("intl")
-    process_signals(all_results, gestor, portfolio)
+    eventos_saida = process_signals(all_results, gestor, portfolio)
 
     ranked = sorted(all_results, key=lambda r: r["pct_change"], reverse=True)
 
@@ -125,10 +137,20 @@ def run():
     for r in ranked[-5:][::-1]:
         print(f"{r['symbol']:8s} {r['pct_change']:+6.2f}%  sinal={r['signal']:4s}  RSI={r['rsi']}")
 
+    oportunidades = ranquear_oportunidades_compra(all_results)
+    print(f"\n--- Top {len(oportunidades)} oportunidades de compra (aprovadas pela gestão de risco) ---")
+    for r in oportunidades:
+        print(narrate(r))
+
     signals = [r for r in all_results if r["signal"] != "HOLD"]
     print(f"\n--- Alertas ({len(signals)}) ---")
     for r in signals:
         print(narrate(r))
+
+    if eventos_saida:
+        print(f"\n--- Alertas de venda ({len(eventos_saida)}) ---")
+        for evento in eventos_saida:
+            print(narrate_saida(evento))
 
     print("\n=== RESUMO DO PORTFÓLIO SIMULADO ===")
     summary = portfolio.summary()

@@ -181,12 +181,26 @@ class GestorDeRisco:
 
     def abrir_posicao(self, symbol: str, setor: str, qty: int, preco: float,
                        stop: float, alvo: float) -> Posicao:
+        """Abre uma posição nova, ou reforça (average up/down) uma posição
+        já existente no mesmo ativo — soma quantidade, recalcula o preço
+        médio de entrada e nunca afrouxa um stop que já subiu por trailing."""
         custo = preco * qty * self.config.custo_operacao_pct / 100
         self.caixa -= preco * qty + custo
 
-        pos = Posicao(symbol=symbol, setor=setor, qty=qty, preco_entrada=preco,
-                      stop=stop, alvo=alvo, custo_entrada=custo)
-        self.posicoes[symbol] = pos
+        pos = self.posicoes.get(symbol)
+        if pos:
+            qty_total = pos.qty + qty
+            pos.preco_entrada = (pos.preco_entrada * pos.qty + preco * qty) / qty_total
+            pos.qty = qty_total
+            pos.custo_entrada += custo
+            pos.stop = max(pos.stop, stop)
+            pos.alvo = alvo
+            pos.maxima_atingida = max(pos.maxima_atingida, preco)
+        else:
+            pos = Posicao(symbol=symbol, setor=setor, qty=qty, preco_entrada=preco,
+                          stop=stop, alvo=alvo, custo_entrada=custo)
+            self.posicoes[symbol] = pos
+
         self.last_prices[symbol] = preco
         return pos
 

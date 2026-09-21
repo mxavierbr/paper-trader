@@ -36,6 +36,14 @@ def _vote_bb(row) -> str:
     return "HOLD"
 
 
+def _media_rapida_subindo(df: pd.DataFrame) -> bool:
+    """A média rápida virou pra cima na última barra — proxy de que o
+    movimento recente ganhou fôlego (pra cima), não só que o preço mudou."""
+    if len(df) < 2:
+        return False
+    return bool(df.iloc[-1]["ma_fast"] > df.iloc[-2]["ma_fast"])
+
+
 def generate_signal(df: pd.DataFrame) -> dict:
     row = df.iloc[-1]
     if pd.isna(row[["ma_fast", "ma_slow", "rsi", "bb_upper", "bb_lower", "atr"]]).any():
@@ -52,10 +60,25 @@ def generate_signal(df: pd.DataFrame) -> dict:
     else:
         signal = "HOLD"
 
+    # Regra: preço baixo sozinho não é motivo de compra — só confirma se a
+    # média rápida já virou pra cima (indício real de probabilidade de
+    # crescimento). Sem isso, comprar na baixa é só "pegar faca caindo".
+    # Regra espelhada: preço alto sozinho não é motivo de venda — só
+    # confirma se a média rápida já parou de subir (indício de que a alta
+    # bateu no teto), senão corta uma tendência que ainda pode continuar.
+    motivo_veto = None
+    media_subindo = _media_rapida_subindo(df)
+    if signal == "BUY" and not media_subindo:
+        signal = "HOLD"
+        motivo_veto = "preço caiu, mas a média ainda não virou pra cima — sem confirmação de crescimento"
+    elif signal == "SELL" and media_subindo:
+        signal = "HOLD"
+        motivo_veto = "preço subiu, mas a média ainda está em alta — sem confirmação de topo"
+
     prev_close = df.iloc[-2]["close"] if len(df) >= 2 else df.iloc[0]["close"]
     pct_change = round(((row["close"] - prev_close) / prev_close) * 100, 2)
 
-    return {
+    resultado = {
         "signal": signal,
         "price": round(float(row["close"]), 2),
         "pct_change": pct_change,
@@ -64,3 +87,6 @@ def generate_signal(df: pd.DataFrame) -> dict:
         "votes": votes,
         "timestamp": df.index[-1],
     }
+    if motivo_veto:
+        resultado["motivo_veto_tecnico"] = motivo_veto
+    return resultado

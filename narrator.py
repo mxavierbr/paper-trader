@@ -41,6 +41,10 @@ def narrate(signal: dict) -> str:
         msg = (f"{USER_NAME}, para de comprar {symbol} — {razao}. "
                f"Preço atual: {price}. Pode começar a cair a qualquer momento.")
 
+    elif signal.get("motivo_veto_tecnico"):
+        msg = (f"{USER_NAME}, {symbol} ainda não confirma entrada nem saída — "
+               f"{signal['motivo_veto_tecnico']}. Preço atual: {price}. Só observar.")
+
     else:
         msg = f"{USER_NAME}, {symbol} sem sinal claro agora ({price}, RSI {rsi}). Só observar."
 

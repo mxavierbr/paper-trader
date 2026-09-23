@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0A0E13">
-<title>Trendo — Cada ação, sua tendência.</title>
-<meta name="description" content="Informação que vira decisão. Tendência, RSI e sinais das ações da B3, atualizados durante o pregão.">
-<meta property="og:title" content="Trendo — Cada ação, sua tendência.">
-<meta property="og:description" content="Informação que vira decisão.">
+<title>Trendo</title>
+<meta name="description" content="Tendência, RSI e sinais das ações da B3, atualizados durante o pregão.">
+<meta property="og:title" content="Trendo">
+<meta property="og:description" content="Tendência, RSI e sinais das ações da B3, atualizados durante o pregão.">
 <link rel="icon" type="image/svg+xml" href="assets/trendo-icon.svg">
 <link rel="apple-touch-icon" href="assets/trendo-180.png">
 <link rel="manifest" href="assets/manifest.webmanifest">
@@ -49,12 +49,10 @@
   .brand{ display:flex; align-items:center; gap: 10px; }
   .brand img{ width: 34px; height: 34px; display:block; }
   h1{ font-family: 'Sora', 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
-  .tagline{ font-size: 12px; color: var(--muted); margin-top: 3px; white-space: nowrap; }
   @media (max-width: 420px){
     .brand{ gap: 8px; }
     .brand img{ width: 30px; height: 30px; }
     h1{ font-size: 18px; }
-    .tagline{ font-size: 11px; }
     .status{ font-size: 11px; padding: 5px 8px; gap: 6px; }
     .updated{ font-size: 10px; }
   }
@@ -209,7 +207,6 @@
   .note b{ color: var(--text); }
   .empty{ color: var(--muted); font-size: 13px; padding: 16px; }
 
-  .footer-brand{ color: var(--text); font-weight: 600; margin-bottom: 4px; }
   footer{ padding: 8px 16px 32px; font-size: 11px; color: var(--muted); line-height: 1.7; text-align: center; }
 </style>
 </head>
@@ -219,10 +216,7 @@
   <div class="wrap head">
     <div class="brand">
       <img src="assets/trendo-icon.svg" alt="">
-      <div>
-        <h1>Trendo</h1>
-        <div class="tagline">Cada ação, sua tendência.</div>
-      </div>
+      <h1>Trendo</h1>
     </div>
     <div class="head-right">
       <span class="status" id="status"><i></i><span>Carregando…</span></span>
@@ -257,7 +251,6 @@
 </main>
 
 <footer>
-  <div class="footer-brand">Trendo · Informação que vira decisão.</div>
   <div>Cotações B3 via brapi.dev (atraso de ~30 min) · Dólar PTAX: Banco Central do Brasil</div>
   <div>Leitura técnica automática, sem ordens reais. Não é recomendação de investimento.</div>
 </footer>

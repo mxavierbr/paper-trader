@@ -15,10 +15,13 @@ from event_calendar import get_event_calendar
 from seasonality import get_seasonal_bias
 
 
-def scan_market(market: str) -> list:
+def scan_market(market: str, allow_mock: bool = True) -> list:
     """Varre todo o universo de um mercado, calcula indicadores, sinal
     técnico, filtra liquidez/eventos e refina com a camada de IA
-    (notícias + fundamentos + sazonalidade)."""
+    (notícias + fundamentos + sazonalidade).
+
+    allow_mock=False descarta ativos sem fonte real, em vez de preencher
+    com dado simulado — usado no painel publicado, que só mostra dado real."""
     news_source = get_news_source()
     fundamentals_source = get_fundamentals_source()
     calendar = get_event_calendar()
@@ -27,9 +30,14 @@ def scan_market(market: str) -> list:
 
     for symbol in get_universe(market):
         source = get_data_source(symbol)
+        if not allow_mock and isinstance(source, MockDataSource):
+            continue
         try:
             raw_df = source.get_ohlcv(symbol, periods=200)
         except (NotImplementedError, RuntimeError) as e:
+            if not allow_mock:
+                print(f"[aviso] {symbol}: fonte real indisponível ({e}) — ignorado")
+                continue
             raw_df = MockDataSource().get_ohlcv(symbol, periods=200)
             print(f"[aviso] {symbol}: fonte real indisponível ({e}) — usando dado simulado")
 

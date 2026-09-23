@@ -177,17 +177,20 @@
 </main>
 
 <footer>
-  Dados simulados para desenvolvimento — nenhuma ordem real é enviada.<br>
-  Fonte ao vivo entra quando as APIs reais forem conectadas.
+  <span id="data-source-note">Paper trading — nenhuma ordem real é enviada.</span><br>
+  Cotações diárias da B3 via brapi.dev, atualizadas a cada 30 min no pregão.
 </footer>
 
 <script>
 // ---------------------------------------------------------------
-// URL da API — troque pelo endereço real quando hospedar (ex:
-// https://seu-servico.onrender.com). Localmente, aponta pro
-// uvicorn rodando em 127.0.0.1:8000.
+// Fonte dos dados:
+//  - Local (abrindo o arquivo ou em localhost): API do uvicorn em 127.0.0.1:8000
+//  - Publicado (Netlify): scan.json gerado pelo GitHub Actions no branch `dados`
 // ---------------------------------------------------------------
-const API_URL = "http://127.0.0.1:8000/api/scan";
+const IS_LOCAL = ['', 'localhost', '127.0.0.1'].includes(location.hostname);
+const API_URL = IS_LOCAL
+  ? "http://127.0.0.1:8000/api/scan"
+  : "https://raw.githubusercontent.com/mxavierbr/paper-trader/dados/scan.json";
 
 function fmtPrice(v){ return v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtPct(v){ return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
@@ -206,6 +209,10 @@ function renderMovers(elId, list){
 }
 
 function render(DATA){
+  if (DATA.dados_simulados) {
+    document.getElementById('data-source-note').textContent =
+      'Inclui dados simulados (mock) — não use para decisão real.';
+  }
   document.getElementById('updated-at').textContent =
     'Atualizado ' + new Date(DATA.atualizado_em).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}) +
     ' · ' + DATA.total_ativos + ' ativos';
@@ -259,13 +266,13 @@ function render(DATA){
 
 async function loadData(){
   try {
-    const resp = await fetch(API_URL);
+    const resp = await fetch(API_URL, {cache: 'no-store'});
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     render(data);
   } catch (err) {
     document.getElementById('alerts-card').innerHTML =
-      `<div class="empty">Não consegui falar com a API (${err.message}). Confirme que ela está rodando e acessível em ${API_URL}.</div>`;
+      `<div class="empty">Não consegui carregar os dados (${err.message}). Fonte: ${API_URL}</div>`;
   }
 }
 

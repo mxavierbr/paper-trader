@@ -1,8 +1,8 @@
-# Netlify publica só o painel (dashboard.html -> index.html).
+# Netlify publica só o painel (dashboard.html -> index.html) e os ícones.
 # Os dados vêm do scan.json no branch `dados` do GitHub, então o Netlify
 # só faz deploy quando o painel muda — economiza créditos do plano.
 [build]
-  command = "mkdir -p site && cp dashboard.html site/index.html"
+  command = "mkdir -p site && cp dashboard.html site/index.html && cp -r assets site/"
   publish = "site"
   # Pula o build se nada relevante ao painel mudou no commit.
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- dashboard.html netlify.toml"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- dashboard.html assets netlify.toml"

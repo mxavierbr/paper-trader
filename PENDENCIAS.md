@@ -32,6 +32,9 @@
 - [x] Painel v2: todas as ações com RSI/tendência/sinal, filtro por setor (Agro, Proteína, Papel e celulose, Logística, Outros) e gráfico de 3 meses por ação
 - [ ] (Opcional) Cadastrar secret `ANTHROPIC_API_KEY` para ligar a camada de IA (ver pendência da IA acima)
 - [ ] Carteira simulada persistente entre varreduras (hoje recomeça a cada execução; oculta no painel)
+- [x] Painel v3: faixa de mercado (Ibovespa, dólar PTAX do BCB, status do pregão), tabela única ordenável com mini-gráfico, detalhe com variação 1 semana/1 mês/3 meses e acerto histórico dos sinais
+- [ ] (Opcional) Avisos no celular (Telegram) quando surgir sinal novo
+- [ ] Acerto histórico com amostra maior: hoje usa 3 meses (limite do plano gratuito da brapi); com 2+ anos o percentual passa a ter peso estatístico
 
 ## Execução real (só depois de tudo acima validado)
 - [ ] Implementar envio de ordem real nos adapters (hoje só leem dado, não operam)

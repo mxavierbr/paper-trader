@@ -10,7 +10,8 @@ tendo vários símbolos.
 CORRELATION_GROUPS = {
     "dolar_eua": {"WDOFUT", "ESFUT", "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "META", "JPM", "KO", "XOM"},
     "indice_br": {"WINFUT", "VALE3", "ITUB4", "BBDC4", "BBAS3", "ABEV3", "WEGE3"},
-    "agro": {"ZCFUT", "EMBR3", "JBSS3", "BRFS3", "SUZB3"},
+    "agro": {"ZCFUT", "SLCE3", "AGRO3", "TTEN3", "SOJA3", "SMTO3", "JALL3", "RAIZ4",
+             "CAML3", "VITT3", "KEPL3", "MBRF3", "BEEF3", "JBSS32", "SUZB3", "KLBN11", "RAIL3"},
 }
 
 

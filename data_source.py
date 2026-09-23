@@ -15,6 +15,8 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 
+from universe import B3_SECTORS
+
 
 class DataSource:
     def get_ohlcv(self, symbol: str, periods: int = 200) -> pd.DataFrame:
@@ -40,18 +42,14 @@ class MockDataSource(DataSource):
         "ESFUT": 5600,      # E-mini S&P 500 (pontos, valor ilustrativo de teste)
         "AAPL": 230, "MSFT": 460, "GOOGL": 175, "AMZN": 210, "TSLA": 250,
         "NVDA": 140, "META": 590, "JPM": 245, "KO": 68, "XOM": 115,
-        "EMBR3": 55, "PETR4": 38, "AZUL4": 8, "JBSS3": 34,
-        "VALE3": 62, "ITUB4": 34, "BBDC4": 15, "ABEV3": 12, "WEGE3": 42,
-        "GGBR4": 21, "SUZB3": 55, "RENT3": 58, "RAIL3": 20, "BRFS3": 24, "BBAS3": 26,
-    }
+    }  # ações B3 sem preço-base aqui usam 100 no mock
 
     # Classifica o ativo — futuros têm ajuste diário e margem; ações não.
     # Usado depois pelo adapter real (IB/corretora B3) para montar o tipo de contrato certo.
     ASSET_TYPE = {
         "WINFUT": "future", "WDOFUT": "future", "ZCFUT": "future", "ESFUT": "future",
     }
-    _B3_TICKERS = {"EMBR3", "PETR4", "AZUL4", "JBSS3", "VALE3", "ITUB4", "BBDC4",
-                   "ABEV3", "WEGE3", "GGBR4", "SUZB3", "RENT3", "RAIL3", "BRFS3", "BBAS3"}
+    _B3_TICKERS = set(B3_SECTORS)  # ações B3 acompanhadas — ver universe.py
 
     def __init__(self):
         for s in self.BASE_PRICES:
@@ -64,7 +62,7 @@ class MockDataSource(DataSource):
         if market == "b3":
             futures = {"WINFUT", "WDOFUT"}
             return sorted(futures | self._B3_TICKERS)
-        return sorted(set(self.BASE_PRICES) - self._B3_TICKERS - {"WINFUT", "WDOFUT"})
+        return sorted(set(self.BASE_PRICES) - {"WINFUT", "WDOFUT"})
 
     def get_ohlcv(self, symbol: str, periods: int = 200) -> pd.DataFrame:
         base = self.BASE_PRICES.get(symbol, 100)
@@ -93,7 +91,7 @@ class BrapiDataSource(DataSource):
     Adapter real para ações B3 via brapi.dev.
 
     Sandbox sem token: PETR4, VALE3, MGLU3, ITUB4. Para os demais símbolos
-    (EMBR3, AZUL4, JBSS3, BBAS3 etc.) e para uso em produção, é preciso
+    (SLCE3, MBRF3, SUZB3, BBAS3 etc.) e para uso em produção, é preciso
     criar um token gratuito em https://brapi.dev/dashboard (15 mil
     requisições/mês no plano free).
 
@@ -154,8 +152,8 @@ class BrapiDataSource(DataSource):
 
 class NelogicaDataSource(DataSource):
     """
-    Adapter para B3 — futuros (WINFUT, WDOFUT) e ações (EMBR3, PETR4, AZUL4,
-    JBSS3 etc.) via DLL/API da Nelogica (Profit).
+    Adapter para B3 — futuros (WINFUT, WDOFUT) e ações (PETR4, SLCE3,
+    MBRF3 etc.) via DLL/API da Nelogica (Profit).
 
     Nota: para ações à vista, uma alternativa mais simples que a DLL da
     Nelogica é usar brapi.dev só para os dados de cotação (mais fácil de

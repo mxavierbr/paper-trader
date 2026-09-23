@@ -12,6 +12,7 @@
 
 ## IA
 - [ ] Configurar `ANTHROPIC_API_KEY` no backend (nunca no app mobile) para `ai_layer.py` funcionar de verdade
+- [ ] **Antes de ligar a IA:** `news_context.py` e `fundamentals.py` ainda devolvem manchetes/fundamentos fictícios (mock). Com a chave configurada, a IA julgaria o sinal com base nesse texto inventado — trocar por fonte real primeiro
 
 ## Calendário de eventos
 - [ ] Integrar calendário público do Bacen (Copom) e do Fed em `event_calendar.py`
@@ -27,9 +28,10 @@
 - [x] Agendamento `.github/workflows/scan.yml` (a cada 30 min no pregão, publica no branch `dados`)
 - [x] `netlify.toml` publica o painel sem gastar deploy a cada atualização de dados
 - [ ] Criar token gratuito em brapi.dev e cadastrar como secret `BRAPI_TOKEN` no GitHub
-- [ ] (Opcional) Cadastrar secret `ANTHROPIC_API_KEY` para ligar a camada de IA
-- [ ] Mesclar este branch na `main` (agendamento do GitHub Actions só roda a partir da `main`)
-- [ ] Conectar o repositório no Netlify (usa o `netlify.toml` automaticamente)
+- [x] Token brapi cadastrado (secret `BRAPI_TOKEN`), workflow rodando na `main`, painel no ar em https://mx-paper-trader.netlify.app
+- [x] Painel v2: todas as ações com RSI/tendência/sinal, filtro por setor (Agro, Proteína, Papel e celulose, Logística, Outros) e gráfico de 3 meses por ação
+- [ ] (Opcional) Cadastrar secret `ANTHROPIC_API_KEY` para ligar a camada de IA (ver pendência da IA acima)
+- [ ] Carteira simulada persistente entre varreduras (hoje recomeça a cada execução; oculta no painel)
 
 ## Execução real (só depois de tudo acima validado)
 - [ ] Implementar envio de ordem real nos adapters (hoje só leem dado, não operam)

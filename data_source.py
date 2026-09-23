@@ -116,8 +116,11 @@ class BrapiDataSource(DataSource):
         import urllib.error
         import json as _json
 
-        # range aproximado pra cobrir 'periods' dias úteis com folga
-        range_days = "3mo" if periods <= 90 else "1y"
+        # Plano gratuito da brapi limita o histórico a 3 meses (~63 pregões);
+        # pedir mais retorna HTTP 400. Suficiente pros indicadores (maior
+        # janela: 21). Em plano pago, dá pra subir via BRAPI_RANGE (ex: 1y).
+        import os
+        range_days = os.environ.get("BRAPI_RANGE", "3mo")
         url = f"{self.BASE_URL}/historical?" + urllib.parse.urlencode(
             {"symbols": symbol, "range": range_days, "interval": "1d"}
         )

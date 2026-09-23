@@ -35,7 +35,7 @@ Histórico das decisões técnicas e de produto tomadas neste repositório. Cada
 
 **Contexto:** o painel publicado precisava de um nome comercial, neutro de setor (a carteira tem agro, bancos, mineração, indústria), distinto do produto já existente "RadarJox".
 
-**Decisão:** nome **Trendo** (derivado de "trend", tendência), subtítulo "Leia a tendência.". Logo: um "t" cuja barra vira linha de tendência de alta, com ponto dourado no destino. Arquivos em `assets/` (SVG, PNGs 180/192/512 e manifest para instalar no celular).
+**Decisão:** nome **Trendo** (derivado de "trend", tendência). Subtítulo no topo: "Cada ação, sua tendência."; assinatura no rodapé e na descrição de compartilhamento: "Informação que vira decisão.". A tela de abertura do app mostra só "Trendo". Logo: um "t" cuja barra vira linha de tendência de alta, com ponto dourado no destino. Arquivos em `assets/` (SVG, PNGs 180/192/512 e manifest para instalar no celular).
 
 **Alternativas consideradas:** Talhão, AgroSinal, Colheita, Silo (ligados só ao agro); Faro, Tino, Vértice, Pulso; Vela, Zênite, Kairós, Ímpeto, Norte. Descartados por preferência do dono do projeto. Evitados nomes de empresas conhecidas do mercado (Safra, Rumo, Prumo).
 

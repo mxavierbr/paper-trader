@@ -5,9 +5,16 @@ name: Scan B3
 # direto do GitHub — nenhum deploy do Netlify é gasto por atualização.
 on:
   schedule:
-    # A cada 30 min, seg–sex, 13:00–20:30 UTC = 10:00–17:30 em Brasília.
-    # O GitHub pode atrasar execuções agendadas em alguns minutos.
-    - cron: "*/30 13-20 * * 1-5"
+    # A cada 20 min no pregão (seg–sex), horários em UTC (Brasília = UTC-3).
+    # Minutos "quebrados" (:07/:27/:47) porque o GitHub atrasa mais as
+    # execuções agendadas no horário cheio. Começa 10:27 (antes disso a
+    # cotação, com ~30 min de atraso, ainda é a de antes da abertura) e
+    # tem uma rodada 18:37 para pegar o fechamento.
+    # Cota brapi grátis: 24 rodadas x 27 consultas x 22 pregões ≈ 14,3 mil
+    # de 15 mil/mês — sobra pouco para execuções manuais.
+    - cron: "27,47 13 * * 1-5"      # 10:27, 10:47
+    - cron: "7,27,47 14-20 * * 1-5" # 11:07 ... 17:47
+    - cron: "37 21 * * 1-5"         # 18:37 (fechamento)
   workflow_dispatch: {}
 
 permissions:

@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0A0E13">
-<title>Trendo — Leia a tendência</title>
+<title>Trendo</title>
+<meta name="description" content="Tendência, RSI e sinais das suas ações, atualizados durante o pregão.">
+<meta property="og:title" content="Trendo">
+<meta property="og:description" content="Tendência, RSI e sinais das suas ações, atualizados durante o pregão.">
 <link rel="icon" type="image/svg+xml" href="assets/trendo-icon.svg">
 <link rel="apple-touch-icon" href="assets/trendo-180.png">
 <link rel="manifest" href="assets/manifest.webmanifest">
@@ -46,7 +49,13 @@
   .brand{ display:flex; align-items:center; gap: 10px; }
   .brand img{ width: 34px; height: 34px; display:block; }
   h1{ font-family: 'Sora', 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
-  .tagline{ font-size: 12px; color: var(--muted); margin-top: 3px; }
+  @media (max-width: 420px){
+    .brand{ gap: 8px; }
+    .brand img{ width: 30px; height: 30px; }
+    h1{ font-size: 18px; }
+    .status{ font-size: 11px; padding: 5px 8px; gap: 6px; }
+    .updated{ font-size: 10px; }
+  }
   .head-right{ display:flex; flex-direction:column; align-items:flex-end; gap: 4px; }
   .updated{ font-size: 11px; white-space: nowrap; }
   .status{
@@ -207,10 +216,7 @@
   <div class="wrap head">
     <div class="brand">
       <img src="assets/trendo-icon.svg" alt="">
-      <div>
-        <h1>Trendo</h1>
-        <div class="tagline">Leia a tendência.</div>
-      </div>
+      <h1>Trendo</h1>
     </div>
     <div class="head-right">
       <span class="status" id="status"><i></i><span>Carregando…</span></span>
@@ -245,7 +251,7 @@
 </main>
 
 <footer>
-  <div>Cotações B3 via brapi.dev (atraso de ~30 min) · Dólar PTAX: Banco Central do Brasil</div>
+  <div>Cotações via brapi.dev (atraso de ~30 min, varredura a cada 20 min no pregão) · Dólar PTAX: Banco Central do Brasil</div>
   <div>Leitura técnica automática, sem ordens reais. Não é recomendação de investimento.</div>
 </footer>
 
@@ -253,11 +259,16 @@
 // ---------------------------------------------------------------
 // Fonte dos dados:
 //  - Local (arquivo aberto direto ou localhost): API do uvicorn em 127.0.0.1:8000
-//  - Publicado (Netlify): scan.json gerado pelo GitHub Actions no branch `dados`
+//  - Publicado (Netlify): scan.json gerado pelo GitHub Actions no branch `dados`,
+//    lido pela API do GitHub (cache de 60 s; consulta sem mudança não gasta
+//    o limite de uso). Se a API recusar (limite estourado), cai no link raw,
+//    que tem cache de até 5 min.
 // ---------------------------------------------------------------
 const IS_LOCAL = ['', 'localhost', '127.0.0.1'].includes(location.hostname);
 const API_URL = IS_LOCAL
   ? "http://127.0.0.1:8000/api/scan"
+  : "https://api.github.com/repos/mxavierbr/paper-trader/contents/scan.json?ref=dados";
+const FALLBACK_URL = IS_LOCAL ? null
   : "https://raw.githubusercontent.com/mxavierbr/paper-trader/dados/scan.json";
 
 // Cores do gráfico validadas (contraste e daltonismo) contra o fundo #121821.
@@ -328,9 +339,20 @@ function renderHeader(){
     st.className = 'status'; st.lastElementChild.textContent = `Fechado · ${fmtDate(p && p.cotacao_de)}`;
     st.title = `Pregão fechado. Cotações do fechamento de ${fmtDate(p && p.cotacao_de)}.`;
   }
-  document.getElementById('updated-at').textContent =
-    'Atualizado ' + new Date(DATA.atualizado_em).toLocaleString('pt-BR',
-      {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+  renderUpdatedAt();
+}
+
+// "Atualizado há X min": mostra na hora quão recente é a última varredura.
+function renderUpdatedAt(){
+  if (!DATA) return;
+  const t = new Date(DATA.atualizado_em);
+  const min = Math.max(0, Math.round((Date.now() - t) / 60000));
+  const hhmm = t.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+  const el = document.getElementById('updated-at');
+  el.textContent = min < 1 ? 'Atualizado agora'
+    : min < 60 ? `Atualizado há ${min} min`
+    : 'Atualizado ' + t.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+  el.title = 'Última varredura: ' + t.toLocaleString('pt-BR') + ` (${hhmm})`;
 }
 
 function renderMarket(){
@@ -594,11 +616,26 @@ document.getElementById('market').addEventListener('click', ev => {
   if (row) row.scrollIntoView({behavior: 'smooth', block: 'center'});
 });
 
-async function loadData(){
-  try {
+async function fetchScan(){
+  if (IS_LOCAL){
     const resp = await fetch(API_URL, {cache: 'no-store'});
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    DATA = await resp.json();
+    return resp.json();
+  }
+  // 'no-cache' revalida com ETag: se o arquivo não mudou, o GitHub responde
+  // 304 e a consulta não conta no limite de 60/h por IP.
+  try {
+    const resp = await fetch(API_URL, {cache: 'no-cache', headers: {Accept: 'application/vnd.github.raw'}});
+    if (resp.ok) return await resp.json();
+  } catch (e) { /* cai para o link raw abaixo */ }
+  const resp = await fetch(FALLBACK_URL, {cache: 'no-cache'});
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  return resp.json();
+}
+
+async function loadData(){
+  try {
+    DATA = await fetchScan();
     render();
   } catch (err) {
     document.getElementById('table').innerHTML =
@@ -607,8 +644,11 @@ async function loadData(){
 }
 
 loadData();
-// Atualiza sozinho a cada 60s enquanto a página estiver aberta.
+// Busca dados novos a cada 60s enquanto a página estiver aberta, e de novo
+// ao voltar para a aba/app (celular suspende timers em segundo plano).
 setInterval(loadData, 60000);
+setInterval(renderUpdatedAt, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadData(); });
 </script>
 </body>
 </html>

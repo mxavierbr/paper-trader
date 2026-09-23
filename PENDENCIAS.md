@@ -34,6 +34,8 @@
 - [ ] Carteira simulada persistente entre varreduras (hoje recomeça a cada execução; oculta no painel)
 - [x] Painel v3: faixa de mercado (Ibovespa, dólar PTAX do BCB, status do pregão), tabela única ordenável com mini-gráfico, detalhe com variação 1 semana/1 mês/3 meses e acerto histórico dos sinais
 - [ ] (Opcional) Avisos no celular (Telegram) quando surgir sinal novo
+- [x] Atraso mínimo no plano gratuito: varredura a cada 20 min (10:27–17:47 + 18:37), painel lê via API do GitHub (cache 60 s, volta para o link raw se a API recusar) e mostra "Atualizado há X min"
+- [ ] Menos atraso que ~30 min exige fonte paga: brapi Startup (~15 min) / Pro (~5 min), ou tempo real via API da corretora (Nelogica/Profit)
 - [ ] Acerto histórico com amostra maior: hoje usa 3 meses (limite do plano gratuito da brapi); com 2+ anos o percentual passa a ter peso estatístico
 
 ## Execução real (só depois de tudo acima validado)

@@ -15,13 +15,14 @@ from event_calendar import get_event_calendar
 from seasonality import get_seasonal_bias
 
 
-def scan_market(market: str, allow_mock: bool = True) -> list:
+def scan_market(market: str, allow_mock: bool = True, with_history: bool = False) -> list:
     """Varre todo o universo de um mercado, calcula indicadores, sinal
     técnico, filtra liquidez/eventos e refina com a camada de IA
     (notícias + fundamentos + sazonalidade).
 
     allow_mock=False descarta ativos sem fonte real, em vez de preencher
-    com dado simulado — usado no painel publicado, que só mostra dado real."""
+    com dado simulado — usado no painel publicado, que só mostra dado real.
+    with_history=True anexa a série de preço + indicadores (para o gráfico)."""
     news_source = get_news_source()
     fundamentals_source = get_fundamentals_source()
     calendar = get_event_calendar()
@@ -47,6 +48,8 @@ def scan_market(market: str, allow_mock: bool = True) -> list:
         df = add_indicators(raw_df)
         signal = generate_signal(df)
         signal["symbol"] = symbol
+        if with_history:
+            signal["history"] = _history(df)
 
         event = calendar.has_upcoming_event(symbol)
         if event:
@@ -65,6 +68,20 @@ def scan_market(market: str, allow_mock: bool = True) -> list:
         results.append(signal)
 
     return results
+
+
+def _history(df) -> dict:
+    """Série diária com indicadores, arredondada, no formato colunar do JSON."""
+    def col(name):
+        return [None if v != v else round(float(v), 2) for v in df[name]]  # NaN -> None
+    return {
+        "dates": [ts.strftime("%Y-%m-%d") for ts in df.index],
+        "close": col("close"),
+        "ma_fast": col("ma_fast"),
+        "ma_slow": col("ma_slow"),
+        "bb_upper": col("bb_upper"),
+        "bb_lower": col("bb_lower"),
+    }
 
 
 def run():

@@ -29,7 +29,7 @@ app.add_middleware(
 
 @app.get("/api/scan")
 def scan():
-    return build_snapshot()
+    return build_snapshot(with_history=True)
 
 
 @app.get("/api/health")

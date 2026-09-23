@@ -133,6 +133,56 @@
     padding: 20px 18px 0; text-align: center;
     font-size: 11px; color: var(--muted); line-height: 1.6;
   }
+
+  /* Todas as ações */
+  .chips{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:10px; }
+  .chip{
+    flex-shrink:0; font: inherit; font-size:12px; font-weight:600;
+    color: var(--muted); background: var(--panel); border:1px solid var(--panel-line);
+    padding:6px 12px; border-radius:20px; cursor:pointer;
+  }
+  .chip[aria-pressed="true"]{ color: var(--text); border-color: var(--muted); }
+  .sector-title{
+    font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+    color: var(--muted); padding: 4px 0 6px;
+  }
+  .sector-title:not(:first-child){ margin-top: 12px; }
+  .asset{ border-bottom: 1px solid var(--panel-line); }
+  .asset:last-child{ border-bottom:none; }
+  .asset-row{
+    width:100%; background:none; border:none; color:inherit; font:inherit; text-align:left;
+    display:grid; grid-template-columns: 1fr auto auto; gap: 4px 12px; align-items:center;
+    padding: 11px 0; cursor:pointer;
+  }
+  .asset-symbol{ font-weight:700; font-size:14px; }
+  .asset-price{ font-size:13px; text-align:right; }
+  .asset-pct{ display:block; font-size:12px; font-weight:600; }
+  .asset-pct.up{ color: var(--up); } .asset-pct.down{ color: var(--down); } .asset-pct.flat{ color: var(--muted); }
+  .asset-sub{ grid-column: 1 / -1; font-size:12px; color: var(--muted); line-height:1.4; }
+  .sig{
+    font-size:10px; font-weight:700; letter-spacing:0.04em; padding:4px 8px; border-radius:8px;
+    min-width:72px; text-align:center;
+  }
+  .sig.buy{ background: rgba(52,211,153,0.14); color: var(--up); }
+  .sig.sell{ background: rgba(248,113,113,0.14); color: var(--down); }
+  .sig.hold{ background: var(--panel-line); color: var(--muted); }
+  .zone-low{ color: var(--up); } .zone-high{ color: var(--down); }
+
+  /* Gráfico */
+  .chart-wrap{ padding: 4px 0 14px; }
+  .legend{ display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11px; color: var(--muted); margin-bottom:6px; }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend i{ display:inline-block; width:14px; height:2px; border-radius:2px; }
+  .legend i.band{ height:8px; background: rgba(231,236,242,0.10); }
+  .chart{ position:relative; }
+  .chart svg{ display:block; width:100%; height:190px; touch-action: pan-y; }
+  .tip{
+    position:absolute; top:0; pointer-events:none; display:none;
+    background: var(--bg); border:1px solid var(--panel-line); border-radius:8px;
+    padding:6px 8px; font-size:11px; line-height:1.5; white-space:nowrap;
+  }
+  .tip .muted{ color: var(--muted); }
+  .chart-note{ font-size:11px; color: var(--muted); margin-top:6px; }
 </style>
 </head>
 <body>
@@ -144,7 +194,7 @@
   </div>
   <div class="subtitle">
     <span id="updated-at">—</span>
-    <span class="badge">Simulação</span>
+    <span class="badge" id="badge">—</span>
   </div>
 </header>
 
@@ -170,8 +220,9 @@
   </section>
 
   <section>
-    <div class="section-label">Portfólio simulado</div>
-    <div class="card" id="portfolio-card"></div>
+    <div class="section-label">Todas as ações</div>
+    <div class="chips" id="sector-chips" role="group" aria-label="Filtrar por setor"></div>
+    <div class="card" id="assets-card"></div>
   </section>
 
 </main>
@@ -193,33 +244,180 @@ const API_URL = IS_LOCAL
   : "https://raw.githubusercontent.com/mxavierbr/paper-trader/dados/scan.json";
 
 function fmtPrice(v){ return v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
-function fmtPct(v){ return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
-function fmtMoney(v){ return 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtPct(v){ return (v >= 0 ? '+' : '') + v.toFixed(2).replace('.', ',') + '%'; }
+function pctClass(v){ return v > 0 ? 'up' : v < 0 ? 'down' : 'flat'; }
 
-function renderMovers(elId, list){
-  document.getElementById(elId).innerHTML = list.map(m => `
+// Cores do gráfico validadas (contraste e daltonismo) contra o fundo #121821.
+const C_PRICE = '#E7ECF2', C_FAST = '#B8822C', C_SLOW = '#4F8FE6';
+
+let DATA = null;
+let sectorFilter = 'Todos';
+let openSymbol = null;
+
+function renderMovers(elId, list, emptyText){
+  const el = document.getElementById(elId);
+  if (!list.length){ el.innerHTML = `<div class="empty">${emptyText}</div>`; return; }
+  el.innerHTML = list.map(m => `
     <div class="mover-row">
       <div>
         <span class="mover-symbol mono">${m.symbol}</span>
         <span class="mover-price mono">${fmtPrice(m.price)}</span>
       </div>
-      <div class="mover-pct mono ${m.pct_change >= 0 ? 'up' : 'down'}">${fmtPct(m.pct_change)}</div>
+      <div class="mover-pct mono ${pctClass(m.pct_change)}">${fmtPct(m.pct_change)}</div>
     </div>
   `).join('');
 }
 
-function render(DATA){
+function rsiText(rsi){
+  if (rsi < 30) return `<span class="zone-low">RSI ${rsi.toFixed(1).replace('.', ',')} · sobrevendido</span>`;
+  if (rsi > 70) return `<span class="zone-high">RSI ${rsi.toFixed(1).replace('.', ',')} · sobrecomprado</span>`;
+  if (rsi < 40) return `RSI ${rsi.toFixed(1).replace('.', ',')} · perto de sobrevendido`;
+  if (rsi > 60) return `RSI ${rsi.toFixed(1).replace('.', ',')} · perto de sobrecomprado`;
+  return `RSI ${rsi.toFixed(1).replace('.', ',')}`;
+}
+
+function sigChip(a){
+  if (a.signal === 'BUY') return `<span class="sig buy">COMPRA ${a.votos_compra}/3</span>`;
+  if (a.signal === 'SELL') return `<span class="sig sell">VENDA ${a.votos_venda}/3</span>`;
+  const lean = a.votos_compra > a.votos_venda ? ` · C ${a.votos_compra}/3`
+             : a.votos_venda > a.votos_compra ? ` · V ${a.votos_venda}/3` : '';
+  return `<span class="sig hold">NEUTRO${lean}</span>`;
+}
+
+function renderChips(){
+  const setores = ['Todos', ...(DATA.setores || [])].filter(s =>
+    s === 'Todos' || (DATA.ativos || []).some(a => a.setor === s));
+  document.getElementById('sector-chips').innerHTML = setores.map(s =>
+    `<button class="chip" aria-pressed="${s === sectorFilter}" data-setor="${s}">${s}</button>`).join('');
+}
+
+function renderAssets(){
+  const card = document.getElementById('assets-card');
+  const ativos = (DATA.ativos || []).filter(a => sectorFilter === 'Todos' || a.setor === sectorFilter);
+  if (!ativos.length){ card.innerHTML = '<div class="empty">Sem ações para mostrar.</div>'; return; }
+  let html = '', lastSector = null;
+  for (const a of ativos){
+    if (a.setor !== lastSector){
+      html += `<div class="sector-title">${a.setor}</div>`;
+      lastSector = a.setor;
+    }
+    const open = a.symbol === openSymbol;
+    html += `
+      <div class="asset">
+        <button class="asset-row" data-symbol="${a.symbol}" aria-expanded="${open}">
+          <span class="asset-symbol mono">${a.symbol}</span>
+          <span class="asset-price mono">${fmtPrice(a.price)}
+            <span class="asset-pct ${pctClass(a.pct_change)}">${fmtPct(a.pct_change)}</span></span>
+          ${sigChip(a)}
+          <span class="asset-sub">${rsiText(a.rsi)} · ${a.leitura}</span>
+        </button>
+        ${open ? `<div class="chart-wrap" id="chart-${a.symbol}"></div>` : ''}
+      </div>`;
+  }
+  card.innerHTML = html;
+  if (openSymbol){
+    const a = ativos.find(x => x.symbol === openSymbol);
+    if (a) renderChart(document.getElementById('chart-' + a.symbol), a);
+  }
+}
+
+function renderChart(el, a){
+  const h = a.history;
+  if (!h || !h.close || h.close.length < 2){
+    el.innerHTML = '<div class="empty">Histórico indisponível para esta ação.</div>';
+    return;
+  }
+  // Desenha na largura real (sem esticar o SVG), para o texto não distorcer.
+  const W = Math.max(280, Math.round(el.clientWidth || 340)), H = 190, padL = 4, padR = 50, padT = 10, padB = 20;
+  const n = h.close.length;
+  const vals = [...h.close, ...h.bb_upper, ...h.bb_lower, ...h.ma_fast, ...h.ma_slow].filter(v => v != null);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
+  const x = i => padL + (i / (n - 1)) * (W - padL - padR);
+  const y = v => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+
+  const path = arr => {
+    let d = '', pen = false;
+    arr.forEach((v, i) => {
+      if (v == null){ pen = false; return; }
+      d += (pen ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' ';
+      pen = true;
+    });
+    return d;
+  };
+  // Faixa de Bollinger: superior da esquerda p/ direita, inferior de volta.
+  const idx = h.bb_upper.map((v, i) => i).filter(i => h.bb_upper[i] != null && h.bb_lower[i] != null);
+  const band = idx.length ? 'M' + idx.map(i => `${x(i).toFixed(1)} ${y(h.bb_upper[i]).toFixed(1)}`).join(' L') +
+    ' L' + idx.slice().reverse().map(i => `${x(i).toFixed(1)} ${y(h.bb_lower[i]).toFixed(1)}`).join(' L') + ' Z' : '';
+
+  const ticks = [lo + (hi - lo) * 0.15, (lo + hi) / 2, hi - (hi - lo) * 0.15];
+  const fmtDate = d => d.slice(8, 10) + '/' + d.slice(5, 7);
+
+  el.innerHTML = `
+    <div class="legend">
+      <span><i style="background:${C_PRICE}"></i>Preço</span>
+      <span><i style="background:${C_FAST}"></i>Média 9</span>
+      <span><i style="background:${C_SLOW}"></i>Média 21</span>
+      <span><i class="band"></i>Bandas de Bollinger</span>
+    </div>
+    <div class="chart">
+      <svg viewBox="0 0 ${W} ${H}" role="img"
+           aria-label="Gráfico de 3 meses de ${a.symbol}: preço, médias de 9 e 21 dias e Bandas de Bollinger">
+        ${ticks.map(t => `
+          <line x1="${padL}" x2="${W - padR}" y1="${y(t)}" y2="${y(t)}" stroke="var(--panel-line)" stroke-width="1" vector-effect="non-scaling-stroke"/>
+          <text x="${W - padR + 6}" y="${y(t) + 4}" fill="var(--muted)" font-size="11" font-family="JetBrains Mono">${fmtPrice(t)}</text>`).join('')}
+        <path d="${band}" fill="rgba(231,236,242,0.08)"/>
+        <path d="${path(h.ma_slow)}" fill="none" stroke="${C_SLOW}" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+        <path d="${path(h.ma_fast)}" fill="none" stroke="${C_FAST}" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+        <path d="${path(h.close)}" fill="none" stroke="${C_PRICE}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+        <text x="${padL}" y="${H - 4}" fill="var(--muted)" font-size="11" font-family="JetBrains Mono">${fmtDate(h.dates[0])}</text>
+        <text x="${W - padR}" y="${H - 4}" fill="var(--muted)" font-size="11" font-family="JetBrains Mono" text-anchor="end">${fmtDate(h.dates[n - 1])}</text>
+        <line class="xh" y1="${padT}" y2="${H - padB}" stroke="var(--muted)" stroke-width="1" vector-effect="non-scaling-stroke" visibility="hidden"/>
+        <circle class="dotp" r="4" fill="${C_PRICE}" stroke="var(--panel)" stroke-width="2" visibility="hidden"/>
+        <rect x="0" y="0" width="${W}" height="${H}" fill="transparent" class="hit"/>
+      </svg>
+      <div class="tip"></div>
+    </div>
+    <div class="chart-note">Último pregão: ${fmtDate(a.ultimo_pregao)} · diário, 3 meses</div>`;
+
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tip');
+  const xh = el.querySelector('.xh'), dot = el.querySelector('.dotp');
+  const show = ev => {
+    const r = svg.getBoundingClientRect();
+    const px = (ev.clientX - r.left) / r.width * W;
+    const i = Math.max(0, Math.min(n - 1, Math.round((px - padL) / (W - padL - padR) * (n - 1))));
+    xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('visibility', 'visible');
+    dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(h.close[i])); dot.setAttribute('visibility', 'visible');
+    const f = v => v == null ? '—' : fmtPrice(v);
+    tip.innerHTML = `<div class="muted">${fmtDate(h.dates[i])}</div>
+      <div>Preço <b class="mono">${f(h.close[i])}</b></div>
+      <div class="muted">Média 9 ${f(h.ma_fast[i])} · Média 21 ${f(h.ma_slow[i])}</div>`;
+    tip.style.display = 'block';
+    const left = x(i) / W * r.width;
+    tip.style.left = Math.max(0, Math.min(r.width - tip.offsetWidth, left - tip.offsetWidth / 2)) + 'px';
+  };
+  const hide = () => { tip.style.display = 'none'; xh.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); };
+  svg.addEventListener('pointermove', show);
+  svg.addEventListener('pointerdown', show);
+  svg.addEventListener('pointerleave', hide);
+}
+
+function render(){
+  const badge = document.getElementById('badge');
   if (DATA.dados_simulados) {
+    badge.textContent = 'Simulação';
     document.getElementById('data-source-note').textContent =
       'Inclui dados simulados (mock) — não use para decisão real.';
+  } else {
+    badge.textContent = 'Dados reais';
   }
   document.getElementById('updated-at').textContent =
     'Atualizado ' + new Date(DATA.atualizado_em).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}) +
-    ' · ' + DATA.total_ativos + ' ativos';
+    ' · ' + DATA.total_ativos + ' ações';
 
   const alertsCard = document.getElementById('alerts-card');
   if (DATA.alertas.length === 0) {
-    alertsCard.innerHTML = '<div class="empty">Nenhum alerta ativo no momento.</div>';
+    alertsCard.innerHTML = '<div class="empty">Nenhum sinal de compra ou venda agora. Veja abaixo quais ações estão perto de disparar.</div>';
   } else {
     alertsCard.innerHTML = DATA.alertas.map(a => `
       <div class="alert">
@@ -232,44 +430,29 @@ function render(DATA){
     `).join('');
   }
 
-  renderMovers('top-altas', DATA.top_altas.slice(0,5));
-  renderMovers('top-quedas', DATA.top_quedas.slice(0,5));
-
-  const p = DATA.portfolio;
-  const exposurePct = Math.min(100, (p.exposicao_atual / p.limite_exposicao) * 100);
-  let portfolioHtml = `
-    <div class="stat-row"><span class="label">P&L realizado</span>
-      <span class="value mono" style="color:${p.cash_realized_pnl >= 0 ? 'var(--up)' : 'var(--down)'}">${fmtMoney(p.cash_realized_pnl)}</span></div>
-    <div class="stat-row"><span class="label">Exposição</span>
-      <span class="value mono">${fmtMoney(p.exposicao_atual)} / ${fmtMoney(p.limite_exposicao)}</span></div>
-    <div class="exposure-bar"><div class="exposure-fill" style="width:${exposurePct}%"></div></div>
-    <div class="stat-row" style="margin-top:6px;"><span class="label">Trades executados</span><span class="value mono">${p.trades}</span></div>
-  `;
-
-  const positions = Object.entries(p.open_positions);
-  if (positions.length > 0){
-    portfolioHtml += positions.map(([symbol, pos]) => `
-      <div class="position">
-        <div class="position-head">
-          <span class="mono">${symbol}</span>
-          <span class="mono">${pos.qty} un · ${fmtPrice(pos.avg_price)}</span>
-        </div>
-        <div class="position-detail mono">
-          <span>Stop ${fmtPrice(pos.stop_loss)}</span>
-          <span>Alvo ${fmtPrice(pos.take_profit)}</span>
-        </div>
-      </div>
-    `).join('');
-  }
-  document.getElementById('portfolio-card').innerHTML = portfolioHtml;
+  renderMovers('top-altas', DATA.top_altas.filter(m => m.pct_change > 0).slice(0,5), 'Nenhuma alta.');
+  renderMovers('top-quedas', DATA.top_quedas.filter(m => m.pct_change < 0).slice(0,5), 'Nenhuma queda.');
+  renderChips();
+  renderAssets();
 }
+
+document.getElementById('sector-chips').addEventListener('click', ev => {
+  const b = ev.target.closest('.chip'); if (!b) return;
+  sectorFilter = b.dataset.setor;
+  renderChips(); renderAssets();
+});
+document.getElementById('assets-card').addEventListener('click', ev => {
+  const b = ev.target.closest('.asset-row'); if (!b) return;
+  openSymbol = openSymbol === b.dataset.symbol ? null : b.dataset.symbol;
+  renderAssets();
+});
 
 async function loadData(){
   try {
     const resp = await fetch(API_URL, {cache: 'no-store'});
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    render(data);
+    DATA = await resp.json();
+    render();
   } catch (err) {
     document.getElementById('alerts-card').innerHTML =
       `<div class="empty">Não consegui carregar os dados (${err.message}). Fonte: ${API_URL}</div>`;

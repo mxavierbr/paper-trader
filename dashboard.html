@@ -4,10 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0A0E13">
-<title>Painel B3</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23121821'/%3E%3Cpath d='M6 22l6-7 5 4 9-10' fill='none' stroke='%2334D399' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<title>Trendo — Leia a tendência</title>
+<link rel="icon" type="image/svg+xml" href="assets/trendo-icon.svg">
+<link rel="apple-touch-icon" href="assets/trendo-180.png">
+<link rel="manifest" href="assets/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Trendo">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg: #0A0E13;
@@ -18,6 +23,7 @@
     --muted: #7C8A9C;
     --up: #34D399;
     --down: #F87171;
+    --gold: #E4B054;
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
   body{
@@ -37,8 +43,12 @@
     border-bottom: 1px solid var(--line);
   }
   .head{ display:flex; justify-content: space-between; align-items:center; gap: 12px; padding-top: 14px; padding-bottom: 14px; }
-  h1{ font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
-  .updated{ font-size: 12px; margin-top: 2px; white-space: nowrap; }
+  .brand{ display:flex; align-items:center; gap: 10px; }
+  .brand img{ width: 34px; height: 34px; display:block; }
+  h1{ font-family: 'Sora', 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
+  .tagline{ font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .head-right{ display:flex; flex-direction:column; align-items:flex-end; gap: 4px; }
+  .updated{ font-size: 11px; white-space: nowrap; }
   .status{
     display:inline-flex; align-items:center; gap:8px; white-space: nowrap;
     font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 20px;
@@ -50,11 +60,16 @@
   main.wrap{ padding-top: 16px; padding-bottom: 24px; display:flex; flex-direction:column; gap: 16px; }
 
   /* Faixa de mercado */
-  .market{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .market{ display:grid; grid-template-columns: 1fr 1fr 1.7fr; gap: 10px; }
   .kpi{ background: var(--panel); border:1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
   .kpi-label{ font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
   .kpi-value{ font-size: 20px; font-weight: 600; margin-top: 4px; }
   .kpi-sub{ font-size: 12px; margin-top: 2px; }
+  /* Radar: as ações mais perto de dar sinal */
+  .radar{ display:grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 8px; }
+  .radar-col-title{ font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+  .radar-item{ display:flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 2px 0; cursor: pointer; }
+  .radar-item:hover .mono{ text-decoration: underline; }
   @media (max-width: 640px){
     .market{ grid-template-columns: 1fr 1fr; }
     .market .kpi:last-child{ grid-column: 1 / -1; }
@@ -80,6 +95,15 @@
     padding: 6px 12px; border-radius: 20px;
   }
   .chip[aria-pressed="true"]{ color: var(--text); border-color: var(--muted); }
+  .tools-right{ display:flex; gap: 8px; align-items:center; }
+  .search{
+    font: inherit; font-size: 13px; color: var(--text); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; width: 150px;
+  }
+  .search::placeholder{ color: var(--muted); }
+  .search:focus, .sort-select:focus, .chip:focus-visible, .star:focus-visible, .row:focus-visible{
+    outline: 2px solid var(--up); outline-offset: 1px;
+  }
   .sort-select{
     font: inherit; font-size: 12px; color: var(--text); background: var(--panel);
     border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px;
@@ -103,8 +127,28 @@
   .num{ text-align: right; font-size: 13px; }
   .asset{ border-bottom: 1px solid var(--line); }
   .asset:last-child{ border-bottom: none; }
-  button.row{ width: 100%; background:none; border:none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-  button.row:hover{ background: rgba(231,236,242,0.03); }
+  .asset > .row{ cursor: pointer; }
+  .asset > .row:hover{ background: rgba(231,236,242,0.03); }
+  .name-cell{ display:flex; align-items:center; gap: 8px; min-width: 0; }
+  .star{
+    background:none; border:none; cursor:pointer; padding: 2px; line-height: 0; flex-shrink: 0;
+    color: var(--line);
+  }
+  .star svg{ width: 16px; height: 16px; }
+  .star:hover{ color: var(--muted); }
+  .star[aria-pressed="true"]{ color: var(--gold); }
+
+  /* Destaque rápido quando o preço muda entre atualizações */
+  @keyframes flashUp{ from{ background: rgba(52,211,153,0.28); } to{ background: transparent; } }
+  @keyframes flashDown{ from{ background: rgba(248,113,113,0.28); } to{ background: transparent; } }
+  .flash-up{ animation: flashUp 1.4s ease-out; border-radius: 4px; }
+  .flash-down{ animation: flashDown 1.4s ease-out; border-radius: 4px; }
+
+  /* Esqueleto de carregamento */
+  @keyframes shimmer{ 0%{ background-position: -400px 0; } 100%{ background-position: 400px 0; } }
+  .sk{ border-radius: 6px; background: linear-gradient(90deg, var(--line) 0, #26313D 40%, var(--line) 80%);
+       background-size: 800px 100%; animation: shimmer 1.4s infinite linear; }
+  @media (prefers-reduced-motion: reduce){ .sk, .flash-up, .flash-down, .detail{ animation: none !important; } }
   .tk{ font-weight: 700; font-size: 14px; }
   .sector{ font-size: 11px; color: var(--muted); margin-top: 1px; }
   .spark{ display:block; width: 104px; height: 28px; }
@@ -117,20 +161,24 @@
   .m-only, .price-day{ display:none; }
 
   @media (max-width: 720px){
-    .row{ grid-template-columns: 1fr auto auto; gap: 4px 12px; padding: 10px 14px; }
+    .row{ grid-template-columns: minmax(0,1fr) 72px 92px; gap: 4px 12px; padding: 10px 14px; }
     .row.head-row{ display:none; }
     .c-d, .c-m, .c-rsi{ display:none; }
     .c-spark{ grid-row: 1; grid-column: 2; }
     .c-price{ grid-row: 1; grid-column: 3; }
-    .c-sig{ grid-row: 2; grid-column: 3; }
-    .m-only{ display:block; grid-row: 2; grid-column: 1 / 3; font-size: 12px; }
+    .c-sig{ grid-row: 2; grid-column: 2 / 4; }
+    .m-only{ display:block; grid-row: 2; grid-column: 1; font-size: 12px; white-space: nowrap; }
     .price-day{ display:block; font-size: 12px; }
+    .tools-right{ width: 100%; }
+    .search{ flex: 1; width: auto; min-width: 0; }
+    .sort-select{ flex: 1; min-width: 0; }
     .spark{ width: 72px; height: 24px; }
   }
   @media (min-width: 721px){ .sort-select{ display:none; } }
 
   /* Detalhe */
-  .detail{ padding: 4px 16px 18px; display:grid; grid-template-columns: 1fr 260px; gap: 20px; }
+  @keyframes open{ from{ opacity: 0; transform: translateY(-4px); } to{ opacity: 1; transform: none; } }
+  .detail{ padding: 4px 16px 18px; display:grid; grid-template-columns: 1fr 260px; gap: 20px; animation: open .22s ease-out; }
   @media (max-width: 720px){ .detail{ grid-template-columns: 1fr; padding: 4px 14px 16px; gap: 14px; } }
   .legend{ display:flex; flex-wrap:wrap; gap: 6px 14px; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
   .legend span{ display:inline-flex; align-items:center; gap: 6px; }
@@ -157,23 +205,42 @@
 
 <header>
   <div class="wrap head">
-    <div>
-      <h1>Painel B3</h1>
-      <div class="updated muted" id="updated-at">Carregando…</div>
+    <div class="brand">
+      <img src="assets/trendo-icon.svg" alt="">
+      <div>
+        <h1>Trendo</h1>
+        <div class="tagline">Leia a tendência.</div>
+      </div>
     </div>
-    <span class="status" id="status"><i></i><span>—</span></span>
+    <div class="head-right">
+      <span class="status" id="status"><i></i><span>Carregando…</span></span>
+      <span class="updated muted" id="updated-at"></span>
+    </div>
   </div>
 </header>
 
 <main class="wrap">
-  <section class="market" id="market" aria-label="Mercado"></section>
+  <section class="market" id="market" aria-label="Mercado">
+    <div class="kpi"><div class="sk" style="height:10px;width:60px"></div><div class="sk" style="height:20px;width:110px;margin-top:10px"></div><div class="sk" style="height:10px;width:140px;margin-top:8px"></div></div>
+    <div class="kpi"><div class="sk" style="height:10px;width:60px"></div><div class="sk" style="height:20px;width:110px;margin-top:10px"></div><div class="sk" style="height:10px;width:140px;margin-top:8px"></div></div>
+    <div class="kpi"><div class="sk" style="height:10px;width:60px"></div><div class="sk" style="height:20px;width:180px;margin-top:10px"></div><div class="sk" style="height:10px;width:200px;margin-top:8px"></div></div>
+  </section>
   <section class="alerts" id="alerts" aria-label="Sinais de compra e venda"></section>
   <section>
     <div class="toolbar">
       <div class="chips" id="chips" role="group" aria-label="Filtrar por setor"></div>
-      <select class="sort-select" id="sort-select" aria-label="Ordenar"></select>
+      <div class="tools-right">
+        <input class="search" id="search" type="search" placeholder="Buscar ação" aria-label="Buscar ação pelo código" autocomplete="off" spellcheck="false">
+        <select class="sort-select" id="sort-select" aria-label="Ordenar"></select>
+      </div>
     </div>
-    <div class="table" id="table"></div>
+    <div class="table" id="table">
+      <div class="row head-row"></div>
+      <div class="asset"><div class="row"><div class="sk" style="height:14px;width:70px"></div></div></div>
+      <div class="asset"><div class="row"><div class="sk" style="height:14px;width:90px"></div></div></div>
+      <div class="asset"><div class="row"><div class="sk" style="height:14px;width:60px"></div></div></div>
+      <div class="asset"><div class="row"><div class="sk" style="height:14px;width:80px"></div></div></div>
+    </div>
   </section>
 </main>
 
@@ -208,6 +275,15 @@ let DATA = null;
 let sector = 'Todos';
 let sortKey = 'pct_change', sortDir = -1;
 let openSymbol = null;
+let query = '';
+let prevPrices = {};     // preço na atualização anterior, para destacar mudanças
+
+// Favoritos ficam salvos só neste aparelho/navegador.
+const FAV_KEY = 'trendo:favoritos';
+let favs = new Set();
+try { favs = new Set(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')); } catch (e) {}
+function saveFavs(){ try { localStorage.setItem(FAV_KEY, JSON.stringify([...favs])); } catch (e) {} }
+const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>';
 
 const nf2 = new Intl.NumberFormat('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const nf1 = new Intl.NumberFormat('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1});
@@ -216,6 +292,10 @@ const fmtPrice = v => nf2.format(v);
 const fmtPct = v => v == null ? '—' : (v > 0 ? '+' : '') + nf2.format(v) + '%';
 const cls = v => v == null ? 'flat' : v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
 const fmtDate = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) : '—';
+
+// Proximidade de sinal: compra ativa > neutro inclinado à compra > ... > venda ativa.
+const signalRank = a => a.signal === 'BUY' ? 3 + a.votos_compra : a.signal === 'SELL' ? -3 - a.votos_venda
+                        : a.votos_compra - a.votos_venda;
 
 function sparkline(values, w, h, color){
   const v = values.filter(x => x != null);
@@ -258,6 +338,16 @@ function renderMarket(){
   const ib = m.ibovespa, dl = m.dolar;
   const nBuy = DATA.ativos.filter(a => a.signal === 'BUY').length;
   const nSell = DATA.ativos.filter(a => a.signal === 'SELL').length;
+  // Radar: 3 mais perto de compra e 3 mais perto de venda. Empate: RSI mais
+  // baixo favorece compra, mais alto favorece venda.
+  const byBuy = DATA.ativos.slice().sort((a, b) => signalRank(b) - signalRank(a) || a.rsi - b.rsi).slice(0, 3);
+  const bySell = DATA.ativos.slice().sort((a, b) => signalRank(a) - signalRank(b) || b.rsi - a.rsi).slice(0, 3);
+  const item = (a, side) => {
+    const v = side === 'buy' ? a.votos_compra : a.votos_venda;
+    const tag = (side === 'buy' ? a.signal === 'BUY' : a.signal === 'SELL') ? (side === 'buy' ? 'COMPRA' : 'VENDA') : `${v}/3`;
+    return `<div class="radar-item" data-symbol="${a.symbol}"><span class="mono">${a.symbol}</span>
+      <span class="mono muted">RSI ${nf1.format(a.rsi)} · <span class="${side === 'buy' ? 'up' : 'down'}">${tag}</span></span></div>`;
+  };
   const kpi = (label, value, sub) => `<div class="kpi"><div class="kpi-label">${label}</div>
     <div class="kpi-value mono">${value}</div><div class="kpi-sub">${sub}</div></div>`;
   const na = '<span class="muted">indisponível</span>';
@@ -266,8 +356,13 @@ function renderMarket(){
       ? `<span class="mono ${cls(ib.var_dia)}">${fmtPct(ib.var_dia)}</span> <span class="muted">dia ·</span> <span class="mono ${cls(ib.var_21d)}">${fmtPct(ib.var_21d)}</span> <span class="muted">1 mês</span>` : na) +
     kpi('Dólar PTAX', dl ? 'R$ ' + dl.valor.toLocaleString('pt-BR', {minimumFractionDigits: 4}) : '—', dl
       ? `<span class="mono ${cls(dl.var_dia)}">${fmtPct(dl.var_dia)}</span> <span class="muted">dia · BCB ${fmtDate(dl.data)}</span>` : na) +
-    kpi('Sinais agora', `${nBuy + nSell}`,
-      `<span class="up">${nBuy} compra</span> <span class="muted">·</span> <span class="down">${nSell} venda</span> <span class="muted">· ${DATA.total_ativos} ações</span>`);
+    `<div class="kpi">
+      <div class="kpi-label">Radar · ${nBuy + nSell ? `<span class="up">${nBuy} compra</span> · <span class="down">${nSell} venda</span> agora` : 'nenhum sinal ativo'}</div>
+      <div class="radar">
+        <div><div class="radar-col-title up">Mais perto de compra</div>${byBuy.map(a => item(a, 'buy')).join('')}</div>
+        <div><div class="radar-col-title down">Mais perto de venda</div>${bySell.map(a => item(a, 'sell')).join('')}</div>
+      </div>
+    </div>`;
 }
 
 function renderAlerts(){
@@ -289,13 +384,12 @@ const COLS = [
   ['symbol', 'Ação'], ['price', 'Preço'], ['pct_change', 'Dia'], ['var_21d', '1 mês'],
   ['rsi', 'RSI'], [null, '3 meses'], ['signal', 'Sinal'],
 ];
-// Proximidade de sinal: compra ativa > neutro inclinado à compra > ... > venda ativa.
-const signalRank = a => a.signal === 'BUY' ? 3 + a.votos_compra : a.signal === 'SELL' ? -3 - a.votos_venda
-                        : a.votos_compra - a.votos_venda;
 
 function sortedList(list){
   const val = a => sortKey === 'signal' ? signalRank(a) : a[sortKey];
   return list.slice().sort((a, b) => {
+    const fa = favs.has(a.symbol), fb = favs.has(b.symbol);
+    if (fa !== fb) return fa ? -1 : 1;   // favoritos sempre no topo
     const x = val(a), y = val(b);
     if (x == null) return 1;
     if (y == null) return -1;
@@ -304,27 +398,35 @@ function sortedList(list){
 }
 
 function renderTable(){
-  const list = sortedList(DATA.ativos.filter(a => sector === 'Todos' || a.setor === sector));
+  const q = query.trim().toUpperCase();
+  const list = sortedList(DATA.ativos.filter(a =>
+    (sector === 'Todos' || a.setor === sector) && (!q || a.symbol.includes(q))));
   const head = `<div class="row head-row">${COLS.map(([k, label]) => k
     ? `<button class="th" data-key="${k}"${k === sortKey ? ` aria-sort="${sortDir > 0 ? 'ascending' : 'descending'}"` : ''}>${label}${k === sortKey ? (sortDir > 0 ? ' ↑' : ' ↓') : ''}</button>`
     : `<span class="th nosort">${label}</span>`).join('')}</div>`;
   const table = document.getElementById('table');
-  if (!list.length){ table.innerHTML = head + '<div class="empty">Sem ações neste filtro.</div>'; return; }
+  if (!list.length){ table.innerHTML = head + `<div class="empty">${q ? `Nenhuma ação com "${q}".` : 'Sem ações neste filtro.'}</div>`; return; }
 
   table.innerHTML = head + list.map(a => {
     const h = a.history || {};
     const open = a.symbol === openSymbol;
+    const fav = favs.has(a.symbol);
+    const prev = prevPrices[a.symbol];
+    const flash = prev != null && prev !== a.price ? (a.price > prev ? 'flash-up' : 'flash-down') : '';
     return `<div class="asset">
-      <button class="row" data-symbol="${a.symbol}" aria-expanded="${open}">
-        <div><div class="tk mono">${a.symbol}</div><div class="sector">${a.setor}</div></div>
-        <div class="num mono c-price">${fmtPrice(a.price)}<span class="price-day ${cls(a.pct_change)}">${fmtPct(a.pct_change)}</span></div>
+      <div class="row" role="button" tabindex="0" data-symbol="${a.symbol}" aria-expanded="${open}">
+        <div class="name-cell">
+          <button class="star" data-fav="${a.symbol}" aria-pressed="${fav}" aria-label="${fav ? 'Remover' : 'Adicionar'} ${a.symbol} dos favoritos">${STAR}</button>
+          <div><div class="tk mono">${a.symbol}</div><div class="sector">${a.setor}</div></div>
+        </div>
+        <div class="num mono c-price"><span class="${flash}">${fmtPrice(a.price)}</span><span class="price-day ${cls(a.pct_change)}">${fmtPct(a.pct_change)}</span></div>
         <div class="num mono c-d ${cls(a.pct_change)}">${fmtPct(a.pct_change)}</div>
         <div class="num mono c-m ${cls(a.var_21d)}">${fmtPct(a.var_21d)}</div>
         <div class="num mono c-rsi">${rsiCell(a.rsi)}</div>
         <div class="c-spark end">${sparkline(h.close || [], 104, 28, (a.var_periodo ?? 0) >= 0 ? 'var(--up)' : 'var(--down)')}</div>
         <div class="c-sig end">${sigChip(a)}</div>
         <div class="m-only muted">1 mês <span class="mono ${cls(a.var_21d)}">${fmtPct(a.var_21d)}</span> · RSI <span class="mono">${rsiCell(a.rsi)}</span></div>
-      </button>
+      </div>
       ${open ? `<div class="detail" id="detail-${a.symbol}"></div>` : ''}
     </div>`;
   }).join('');
@@ -441,11 +543,13 @@ function syncSortSelect(){
 
 function render(){
   renderHeader(); renderMarket(); renderAlerts(); renderChips(); renderTable(); syncSortSelect();
+  prevPrices = Object.fromEntries(DATA.ativos.map(a => [a.symbol, a.price]));
 }
 
 document.getElementById('sort-select').innerHTML =
   '<option value="" hidden>Ordenação personalizada</option>' +
   SORTS.map(([label], i) => `<option value="${i}">${label}</option>`).join('');
+syncSortSelect();
 
 document.getElementById('sort-select').addEventListener('change', ev => {
   const s = SORTS[+ev.target.value]; if (!s) return;
@@ -463,9 +567,31 @@ document.getElementById('table').addEventListener('click', ev => {
     else { sortKey = k; sortDir = k === 'symbol' ? 1 : -1; }
     renderTable(); syncSortSelect(); return;
   }
-  const row = ev.target.closest('button.row'); if (!row) return;
+  const star = ev.target.closest('.star');
+  if (star){
+    const sym = star.dataset.fav;
+    favs.has(sym) ? favs.delete(sym) : favs.add(sym);
+    saveFavs(); renderTable(); return;
+  }
+  const row = ev.target.closest('.asset > .row'); if (!row) return;
   openSymbol = openSymbol === row.dataset.symbol ? null : row.dataset.symbol;
   renderTable();
+});
+document.getElementById('table').addEventListener('keydown', ev => {
+  if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches('.asset > .row')){
+    ev.preventDefault(); ev.target.click();
+  }
+});
+document.getElementById('search').addEventListener('input', ev => {
+  query = ev.target.value; renderTable();
+});
+// Clicar numa ação do radar abre o detalhe dela na tabela.
+document.getElementById('market').addEventListener('click', ev => {
+  const it = ev.target.closest('.radar-item'); if (!it) return;
+  sector = 'Todos'; query = ''; document.getElementById('search').value = '';
+  openSymbol = it.dataset.symbol; renderChips(); renderTable();
+  const row = document.querySelector(`.asset > .row[data-symbol="${openSymbol}"]`);
+  if (row) row.scrollIntoView({behavior: 'smooth', block: 'center'});
 });
 
 async function loadData(){

@@ -13,6 +13,7 @@ from correlation_check import check_correlation_limit
 from cost_analyzer import net_result
 from event_calendar import get_event_calendar
 from seasonality import get_seasonal_bias
+from analytics import performance, signal_track_record
 
 
 def scan_market(market: str, allow_mock: bool = True, with_history: bool = False) -> list:
@@ -50,6 +51,8 @@ def scan_market(market: str, allow_mock: bool = True, with_history: bool = False
         signal["symbol"] = symbol
         if with_history:
             signal["history"] = _history(df)
+            signal["perf"] = performance(df)
+            signal["track"] = signal_track_record(df)
 
         event = calendar.has_upcoming_event(symbol)
         if event:

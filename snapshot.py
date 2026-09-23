@@ -15,8 +15,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 from main import scan_market
-from paper_portfolio import PaperPortfolio
-from correlation_check import check_correlation_limit
+from market import fetch_ibovespa, fetch_ptax, market_status
 from narrator import narrate
 from universe import B3_SECTORS, SECTOR_ORDER
 
@@ -52,6 +51,8 @@ def _asset(r: dict) -> dict:
         "votos_venda": sum(v == "SELL" for v in votes.values()),
         "leitura": _leitura(votes),
         "ultimo_pregao": r["timestamp"].strftime("%Y-%m-%d"),
+        **(r.get("perf") or {}),
+        "acerto": r.get("track"),
         "history": r.get("history"),
     }
 
@@ -74,40 +75,30 @@ def build_snapshot(markets=("b3", "intl"), allow_mock: bool = True, with_history
                 fresh.append(r)
         all_results = fresh
 
-    # Carteira simulada: a trava de concentração limita o que entra na
-    # carteira, mas não esconde o sinal técnico do painel.
-    portfolio = PaperPortfolio()
-    for r in all_results:
-        if r["signal"] != "HOLD" and check_correlation_limit(r["symbol"], portfolio.positions):
-            portfolio.apply_signal(r["symbol"], r)
-
-    ranked = sorted(all_results, key=lambda r: r["pct_change"], reverse=True)
-    signals = [r for r in all_results if r["signal"] != "HOLD"]
-    sector_rank = {s: i for i, s in enumerate(SECTOR_ORDER)}
+    ativos = sorted(
+        (_asset(r) for r in all_results),
+        key=lambda a: (SECTOR_ORDER.index(a["setor"]) if a["setor"] in SECTOR_ORDER else len(SECTOR_ORDER),
+                       a["symbol"]),
+    )
+    last_date = max((a["ultimo_pregao"] for a in ativos), default=None)
 
     return {
         "atualizado_em": datetime.now(BRT).isoformat(),
         "dados_simulados": allow_mock,
-        "total_ativos": len(all_results),
+        "total_ativos": len(ativos),
         "setores": SECTOR_ORDER,
-        "top_altas": [
-            {"symbol": r["symbol"], "pct_change": r["pct_change"], "price": r["price"]}
-            for r in ranked if r["pct_change"] > 0
-        ][:5],
-        "top_quedas": [
-            {"symbol": r["symbol"], "pct_change": r["pct_change"], "price": r["price"]}
-            for r in ranked[::-1] if r["pct_change"] < 0
-        ][:5],
+        "mercado": {
+            "pregao": market_status(last_date) if last_date else None,
+            # Contexto externo só no painel publicado (dado real).
+            "ibovespa": None if allow_mock else fetch_ibovespa(),
+            "dolar": None if allow_mock else fetch_ptax(),
+        },
         "alertas": [
             {"symbol": r["symbol"], "signal": r["signal"], "price": r["price"],
              "mensagem": narrate(r)}
-            for r in signals
+            for r in all_results if r["signal"] != "HOLD"
         ],
-        "ativos": sorted(
-            (_asset(r) for r in all_results),
-            key=lambda a: (sector_rank.get(a["setor"], len(sector_rank)), a["symbol"]),
-        ),
-        "portfolio": portfolio.summary(),
+        "ativos": ativos,
     }
 
 

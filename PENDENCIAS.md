@@ -21,10 +21,15 @@
 - [ ] Rodar `backtest.py` contra histórico real (2+ anos) assim que houver dado real — com mock não tem valor preditivo
 - [ ] Rodar em paper trading real (dado ao vivo, sem executar ordem) por algumas semanas antes de cogitar execução real
 
-## Painel mobile
-- [x] Painel web estático (`dashboard.html`) — funciona, mas dado é foto fixa, não ao vivo
-- [ ] Transformar `main.py` numa API (ex: FastAPI) rodando num servidor contínuo
-- [ ] Trocar o objeto `DATA` fixo no `dashboard.html` por `fetch()` na API real
+## Painel mobile (Opção 2: Netlify + GitHub Actions — ver docs/decisoes.md)
+- [x] Painel web (`dashboard.html`) lendo dados via `fetch()`
+- [x] `snapshot.py` gera o `scan.json` (só ações B3 com dado real, sem mock)
+- [x] Agendamento `.github/workflows/scan.yml` (a cada 30 min no pregão, publica no branch `dados`)
+- [x] `netlify.toml` publica o painel sem gastar deploy a cada atualização de dados
+- [ ] Criar token gratuito em brapi.dev e cadastrar como secret `BRAPI_TOKEN` no GitHub
+- [ ] (Opcional) Cadastrar secret `ANTHROPIC_API_KEY` para ligar a camada de IA
+- [ ] Mesclar este branch na `main` (agendamento do GitHub Actions só roda a partir da `main`)
+- [ ] Conectar o repositório no Netlify (usa o `netlify.toml` automaticamente)
 
 ## Execução real (só depois de tudo acima validado)
 - [ ] Implementar envio de ordem real nos adapters (hoje só leem dado, não operam)

@@ -134,7 +134,9 @@ class BrapiDataSource(DataSource):
         except (KeyError, IndexError, TypeError):
             raise RuntimeError(f"Resposta inesperada da brapi.dev para {symbol}: {data}")
 
-        rows = candles[-periods:]
+        # A brapi devolve do mais recente pro mais antigo — ordena
+        # cronologicamente, senão médias/RSI são calculados de trás pra frente.
+        rows = sorted(candles, key=lambda r: r["date"])[-periods:]
         df = pd.DataFrame({
             "open": [r["open"] for r in rows],
             "high": [r["high"] for r in rows],
